@@ -20,6 +20,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private QuickMediaDrawerListener listener;
     private final ViewDragHelper dragHelper;
     private final View quickCamera;
+    private final View controls;
     private final Rect mTmpRect = new Rect();
 
     public QuickMediaDrawer(Context context) {
@@ -36,7 +37,9 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         drawerState = DrawerState.COLLAPSED;
         dragHelper = ViewDragHelper.create(this, 1f, new ViewDragHelperCallback());
         quickCamera = new QuickCamera(context, null);
+        controls = inflate(getContext(), R.layout.quick_camera_controls, null);
         addView(quickCamera);
+        addView(controls);
     }
 
     @Override
@@ -83,11 +86,12 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             if (child == quickCamera) {
                 childTop = computePanelTopPosition(slideOffset);
                 childBottom = childTop + childHeight;
+            } else if (child == controls){
+                childBottom = childTop + childHeight;
             } else {
                 childBottom = computePanelTopPosition(slideOffset);
                 childTop = childBottom - childHeight;
             }
-
             final int childLeft = paddingLeft;
             final int childRight = childLeft + child.getMeasuredWidth();
 
@@ -111,10 +115,10 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         }
 
         final int childCount = getChildCount();
-        if (childCount != 2)
+        if (childCount != 3)
             throw new IllegalStateException("QuickMediaDrawer layouts may only have 1 child.");
 
-        coverView = getChildAt(0);
+        coverView = getChildAt(2);
 
         int layoutHeight = heightSize - getPaddingTop() - getPaddingBottom();
 
@@ -175,15 +179,15 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         boolean result;
         final int save = canvas.save(Canvas.CLIP_SAVE_FLAG);
 
-        if (quickCamera != child) {
-            canvas.getClipBounds(mTmpRect);
+        canvas.getClipBounds(mTmpRect);
+        if (coverView == child) {
             mTmpRect.bottom = Math.min(mTmpRect.bottom, child.getBottom());
             canvas.clipRect(mTmpRect);
-        }
-        /*else {canvas.getClipBounds(mTmpRect);
+        } else {
+            canvas.getClipBounds(mTmpRect);
             mTmpRect.top = Math.max(mTmpRect.top, coverView.getBottom());
             canvas.clipRect(mTmpRect);
-        }*/
+        }
         result = super.drawChild(canvas, child, drawingTime);
         canvas.restoreToCount(save);
 

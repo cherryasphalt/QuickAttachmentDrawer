@@ -1,11 +1,14 @@
 package hu.calvin.quickmediadrawer;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Rect;
+import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.ViewDragHelper;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -15,13 +18,16 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private boolean firstSetup;
     private DrawerState drawerState;
     private View coverView;
-    private int slideRange, quickCameraHeight;
+    private int slideRange;
     private float slideOffset;
     private QuickMediaDrawerListener listener;
     private final ViewDragHelper dragHelper;
     private final View quickCamera;
     private final View controls;
     private final Rect mTmpRect = new Rect();
+    private float initialMotionX, initialMotionY;
+    private final float anchorPoint;
+    private boolean noDrag;
 
     public QuickMediaDrawer(Context context) {
         this(context, null);
@@ -40,6 +46,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         controls = inflate(getContext(), R.layout.quick_camera_controls, null);
         addView(quickCamera);
         addView(controls);
+        anchorPoint = 0.5f;
+        noDrag = false;
     }
 
     @Override
@@ -87,7 +95,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 childTop = computePanelTopPosition(slideOffset);
                 childBottom = childTop + childHeight;
             } else if (child == controls){
-                childBottom = childTop + childHeight;
+                childBottom = getMeasuredHeight();
             } else {
                 childBottom = computePanelTopPosition(slideOffset);
                 childTop = childBottom - childHeight;
@@ -125,7 +133,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         // First pass. Measure based on child LayoutParams width/height.
         for (int i = 0; i < childCount; i++) {
             final View child = getChildAt(i);
-            final LayoutParams lp = child.getLayoutParams();
+            final LayoutParams lp = (QuickMediaDrawer.LayoutParams) child.getLayoutParams();
 
             // We always measure the sliding panel in order to know it's height (needed for show panel)
             if (child.getVisibility() == GONE && i == 0) {
@@ -179,8 +187,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         boolean result;
         final int save = canvas.save(Canvas.CLIP_SAVE_FLAG);
 
-        canvas.getClipBounds(mTmpRect);
         if (coverView == child) {
+            canvas.getClipBounds(mTmpRect);
             mTmpRect.bottom = Math.min(mTmpRect.bottom, child.getBottom());
             canvas.clipRect(mTmpRect);
         } else {
@@ -222,7 +230,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 //smoothSlideCoverViewTo(0,0);
                 break;
             case HALF_EXPANDED:
-                smoothSlideTo(.5f, 0);
+                smoothSlideTo(anchorPoint, 0);
                 //smoothSlideCoverViewTo(-.5f, 0);
                 break;
             case FULL_EXPANDED:
@@ -246,13 +254,13 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
         @Override
         public boolean tryCaptureView(View child, int pointerId) {
-            return child == quickCamera;
+            return child == controls;
         }
 
         @Override
         public void onViewDragStateChanged(int state) {
             if (dragHelper.getViewDragState() == ViewDragHelper.STATE_IDLE) {
-                //slideOffset = computeSlideOffset(quickCamera.getTop());
+                slideOffset = computeSlideOffset(coverView.getBottom());
             }
         }
 
@@ -262,15 +270,48 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
         @Override
         public void onViewPositionChanged(View changedView, int left, int top, int dx, int dy) {
-            invalidate();
+            if (drawerState == DrawerState.DRAGGING) {
+                int newTop = coverView.getTop() + dy;
+                final int expandedTop = computePanelTopPosition(1.0f) - coverView.getHeight();
+                final int collapsedTop = computePanelTopPosition(0.0f) - coverView.getHeight();
+                newTop = Math.min(Math.max(newTop, expandedTop), collapsedTop);
+                slideOffset = computeSlideOffset(newTop + coverView.getHeight());
+                requestLayout();
+            }
         }
 
         @Override
         public void onViewReleased(View releasedChild, float xvel, float yvel) {
-            int target = 0;
-            target = computePanelTopPosition(1.0f);
-            dragHelper.settleCapturedViewAt(releasedChild.getLeft(), target);
-            invalidate();
+            if (releasedChild == controls) {
+                int target = 0;
+                float direction = -yvel;
+
+                if (direction > 1000) {
+                    // swipe up -> expand
+                    target = computePanelTopPosition(1.0f);
+                } else if (direction < -1500) {
+                    // swipe down -> collapse
+                    target = computePanelTopPosition(slideOffset > anchorPoint ? anchorPoint : 0.0f);
+                } else if (anchorPoint != 1 && slideOffset >= (1.f + anchorPoint) / 2) {
+                    // zero velocity, and far enough from anchor point => expand to the top
+                    target = computePanelTopPosition(1.0f);
+                } else if (anchorPoint == 1 && slideOffset >= 0.5f) {
+                    // zero velocity, and far enough from anchor point => expand to the top
+                    target = computePanelTopPosition(1.0f);
+                } else if (anchorPoint != 1 && slideOffset >= anchorPoint) {
+                    target = computePanelTopPosition(anchorPoint);
+                } else if (anchorPoint != 1 && slideOffset >= anchorPoint / 2) {
+                    target = computePanelTopPosition(anchorPoint);
+                } else {
+                    // settle at the bottom
+                    target = computePanelTopPosition(0.0f);
+                }
+
+                dragHelper.captureChildView(coverView, 0);
+                dragHelper.settleCapturedViewAt(releasedChild.getLeft(), target - releasedChild.getHeight());
+                invalidate();
+            }
+            drawerState = DrawerState.DRAGGING;
         }
 
         @Override
@@ -280,34 +321,151 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
         @Override
         public int clampViewPositionVertical(View child, int top, int dy) {
-            final int collapsedTop = computePanelTopPosition(0.f);
-            final int expandedTop = computePanelTopPosition(1.0f);
-            return Math.min(Math.max(top, expandedTop), collapsedTop);
+            return top;
         }
     }
 
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent event) {
+        final int action = MotionEventCompat.getActionMasked(event);
+
+        if (!isEnabled()) {
+            dragHelper.cancel();
+            return super.onInterceptTouchEvent(event);
+        }
+
+        if (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP) {
+            dragHelper.cancel();
+            return false;
+        }
+
+        final float x = event.getX();
+        final float y = event.getY();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN: {
+                initialMotionX = x;
+                initialMotionY = y;
+                break;
+            }
+
+            case MotionEvent.ACTION_MOVE: {
+                final float adx = Math.abs(x - initialMotionX);
+                final float ady = Math.abs(y - initialMotionY);
+                final int dragSlop = dragHelper.getTouchSlop();
+
+                // Handle any horizontal scrolling on the drag view.
+                if (adx > dragSlop && ady < dragSlop) {
+                    return super.onInterceptTouchEvent(event);
+                }
+
+                if ((ady > dragSlop && adx > ady) || !isDragViewUnder((int)initialMotionX, (int)initialMotionY)) {
+                    dragHelper.cancel();
+                    return false;
+                }
+                break;
+            }
+        }
+        drawerState = DrawerState.DRAGGING;
+        return dragHelper.shouldInterceptTouchEvent(event);
+    }
+
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (!isEnabled()) {
+            return super.onTouchEvent(event);
+        }
+        dragHelper.processTouchEvent(event);
+        return true;
+    }
+
+    private boolean isDragViewUnder(int x, int y) {
+        int[] viewLocation = new int[2];
+        quickCamera.getLocationOnScreen(viewLocation);
+        int[] parentLocation = new int[2];
+        this.getLocationOnScreen(parentLocation);
+        int screenX = parentLocation[0] + x;
+        int screenY = parentLocation[1] + y;
+        return screenX >= viewLocation[0] && screenX < viewLocation[0] + quickCamera.getWidth() &&
+                screenY >= viewLocation[1] && screenY < viewLocation[1] + quickCamera.getHeight();
+    }
+
     private int computePanelTopPosition(float slideOffset) {
-        int slidingViewHeight = quickCamera != null ? quickCamera.getMeasuredHeight() : 0;
         int slidePixelOffset = (int) (slideOffset * slideRange);
-        // Compute the top of the panel if its collapsed
         return getMeasuredHeight() - getPaddingBottom() - slidePixelOffset;
     }
 
     void smoothSlideTo(float slideOffset, int velocity) {
         this.slideOffset = slideOffset;
         int panelTop = computePanelTopPosition(slideOffset);
-        if (dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), panelTop - coverView.getHeight())
-                && dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), panelTop))
+        noDrag = true;
+        if (dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), panelTop) &&
+            dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), panelTop - coverView.getHeight()))
             ViewCompat.postInvalidateOnAnimation(this);
+        noDrag = false;
+
     }
 
     private float computeSlideOffset(int topPosition) {
-        // Compute the panel top position if the panel is collapsed (offset 0)
         final int topBoundCollapsed = computePanelTopPosition(0);
-
-        // Determine the new slide offset based on the collapsed top position and the new required
-        // top position
         return (float) (topBoundCollapsed - topPosition) / slideRange;
+    }
+
+    @Override
+    protected ViewGroup.LayoutParams generateDefaultLayoutParams() {
+        return new LayoutParams();
+    }
+
+    @Override
+    protected ViewGroup.LayoutParams generateLayoutParams(ViewGroup.LayoutParams p) {
+        return p instanceof MarginLayoutParams
+                ? new LayoutParams((MarginLayoutParams) p)
+                : new LayoutParams(p);
+    }
+
+    @Override
+    protected boolean checkLayoutParams(ViewGroup.LayoutParams p) {
+        return p instanceof LayoutParams && super.checkLayoutParams(p);
+    }
+
+    @Override
+    public ViewGroup.LayoutParams generateLayoutParams(AttributeSet attrs) {
+        return new LayoutParams(getContext(), attrs);
+    }
+
+    public static class LayoutParams extends ViewGroup.MarginLayoutParams {
+        private static final int[] ATTRS = new int[] {
+                android.R.attr.layout_weight
+        };
+
+        public LayoutParams() {
+            super(MATCH_PARENT, MATCH_PARENT);
+        }
+
+        public LayoutParams(int width, int height) {
+            super(width, height);
+        }
+
+        public LayoutParams(android.view.ViewGroup.LayoutParams source) {
+            super(source);
+        }
+
+        public LayoutParams(MarginLayoutParams source) {
+            super(source);
+        }
+
+        public LayoutParams(LayoutParams source) {
+            super(source);
+        }
+
+        public LayoutParams(Context c, AttributeSet attrs) {
+            super(c, attrs);
+
+            final TypedArray a = c.obtainStyledAttributes(attrs, ATTRS);
+            a.recycle();
+        }
+
     }
 
 }

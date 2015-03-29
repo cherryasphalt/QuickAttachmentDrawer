@@ -7,15 +7,12 @@ import android.net.Uri;
 import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -35,27 +32,18 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     public QuickCamera(Context context, Callback callback) {
         super(context);
         this.callback = callback;
-        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-        int width = displayMetrics.widthPixels;
-        int height = displayMetrics.heightPixels;
         try {
             camera = getCameraInstance(cameraId);
             ViewGroup.LayoutParams layoutParams;
-            if (camera != null) {
-                cameraParameters = camera.getParameters();
-                Camera.Size previewSize;
-                if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
-                    previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), height, width);
-                    layoutParams = new FrameLayout.LayoutParams(previewSize.height, previewSize.width);
-                } else {
-                    previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
-                    layoutParams = new ViewGroup.LayoutParams(previewSize.width, previewSize.height);
-                }
-                cameraParameters.setPreviewSize(previewSize.width, previewSize.height);
+            initializeCamera();
+            if (cameraParameters != null) {
+                if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT)
+                    layoutParams = new FrameLayout.LayoutParams(cameraParameters.getPreviewSize().height, cameraParameters.getPreviewSize().width);
+                else
+                    layoutParams = new FrameLayout.LayoutParams(cameraParameters.getPreviewSize().width, cameraParameters.getPreviewSize().height);
             } else {
                 layoutParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
             }
-            //layoutParams.gravity = Gravity.CENTER;
             setLayoutParams(layoutParams);
             surfaceHolder = getHolder();
             surfaceHolder.addCallback(this);
@@ -152,10 +140,26 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         }
     }*/
 
+    private void initializeCamera() {
+        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+        int width = displayMetrics.widthPixels;
+        int height = displayMetrics.heightPixels;
+        if (camera != null) {
+            cameraParameters = camera.getParameters();
+            Camera.Size previewSize;
+            if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT)
+                previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), height, width);
+            else
+                previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
+            cameraParameters.setPreviewSize(previewSize.width, previewSize.height);
+        }
+    }
+
     public void startPreview() {
         stopPreview();
         try {
             if (camera == null) camera = getCameraInstance(cameraId);
+            initializeCamera();
             int rotation = (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT ? 90 : 0);
             camera.setParameters(cameraParameters);
             camera.setDisplayOrientation(rotation);

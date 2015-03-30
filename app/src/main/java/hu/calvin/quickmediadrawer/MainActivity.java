@@ -26,6 +26,12 @@ public class MainActivity extends ActionBarActivity {
                 quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.COLLAPSED);
             }
         });
+        findViewById(R.id.quick_media_full_expand).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.FULL_EXPANDED);
+            }
+        });
     }
 
     @Override

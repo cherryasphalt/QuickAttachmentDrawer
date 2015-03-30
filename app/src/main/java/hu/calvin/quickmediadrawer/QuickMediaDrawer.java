@@ -27,7 +27,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private ImageButton fullScreenButton;
     private final Rect mTmpRect = new Rect();
     private float initialMotionX, initialMotionY;
-    private final float anchorPoint;
+    private float anchorPoint;
+    private boolean initialSetup;
 
     public QuickMediaDrawer(Context context) {
         this(context, null);
@@ -43,10 +44,11 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         dragHelper = ViewDragHelper.create(this, 1f, new ViewDragHelperCallback());
         quickCamera = new QuickCamera(context, null);
         controls = inflate(getContext(), R.layout.quick_camera_controls, null);
+        anchorPoint = 0f;
         initializeControlsView();
         addView(quickCamera);
         addView(controls);
-        anchorPoint = 0.5f;
+        initialSetup = true;
     }
 
     public void initializeControlsView() {
@@ -124,6 +126,13 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             final int childRight = childLeft + child.getMeasuredWidth();
 
             child.layout(childLeft, childTop, childRight, childBottom);
+
+            if (initialSetup && child == coverView) {
+                slideRange = getMeasuredHeight();
+                int anchorHeight = slideRange - getResources().getDimensionPixelSize(R.dimen.quick_media_drawer_default_height);
+                anchorPoint = computeSlideOffset(anchorHeight);
+                initialSetup = false;
+            }
         }
     }
 
@@ -190,10 +199,6 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             }
 
             child.measure(childWidthSpec, childHeightSpec);
-
-            if (child == coverView) {
-                slideRange = getMeasuredHeight();
-            }
         }
 
         setMeasuredDimension(widthSize, heightSize);
@@ -239,16 +244,15 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         this.drawerState = drawerState;
         switch (drawerState) {
             case COLLAPSED:
-                smoothSlideTo(0, 0);
+                smoothSlideTo(0);
                 break;
             case HALF_EXPANDED:
-                smoothSlideTo(anchorPoint, 0);
+                smoothSlideTo(anchorPoint);
                 break;
             case FULL_EXPANDED:
-                smoothSlideTo(1.f, 0);
+                smoothSlideTo(1.f);
                 break;
         }
-        requestLayout();
     }
 
     public void setQuickMediaDrawerListener(QuickMediaDrawerListener listener) {
@@ -330,8 +334,9 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 }
 
                 dragHelper.captureChildView(coverView, 0);
-                dragHelper.settleCapturedViewAt(releasedChild.getLeft(), target - releasedChild.getHeight());
-                requestLayout();
+                dragHelper.settleCapturedViewAt(coverView.getLeft(), target - coverView.getHeight());
+                dragHelper.captureChildView(quickCamera, 0);
+                dragHelper.settleCapturedViewAt(quickCamera.getLeft(), target);
             }
         }
 
@@ -416,12 +421,12 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         return getMeasuredHeight() - getPaddingBottom() - slidePixelOffset;
     }
 
-    void smoothSlideTo(float slideOffset, int velocity) {
-        this.slideOffset = slideOffset;
+    void smoothSlideTo(float slideOffset) {
         int panelTop = computePanelTopPosition(slideOffset);
-        if (dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), panelTop) &&
-            dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), panelTop - coverView.getHeight()))
-            ViewCompat.postInvalidateOnAnimation(this);
+        dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), panelTop - coverView.getHeight());
+        dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), panelTop);
+        ViewCompat.postInvalidateOnAnimation(this);
+        this.slideOffset = slideOffset;
     }
 
     private float computeSlideOffset(int topPosition) {

@@ -8,12 +8,13 @@ import android.view.View;
 
 
 public class MainActivity extends ActionBarActivity {
+    QuickMediaDrawer quickMediaDrawer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        final QuickMediaDrawer quickMediaDrawer = (QuickMediaDrawer) findViewById(R.id.quick_media_drawer);
+        quickMediaDrawer = (QuickMediaDrawer) findViewById(R.id.quick_media_drawer);
         findViewById(R.id.quick_media_expand).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -54,5 +55,17 @@ public class MainActivity extends ActionBarActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        quickMediaDrawer.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onPause();
+        quickMediaDrawer.onResume();
     }
 }

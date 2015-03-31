@@ -29,6 +29,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private float initialMotionX, initialMotionY;
     private float anchorPoint;
     private boolean initialSetup;
+    private boolean stopCamera;
 
     public QuickMediaDrawer(Context context) {
         this(context, null);
@@ -49,6 +50,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         addView(quickCamera);
         addView(controls);
         initialSetup = true;
+        stopCamera = false;
     }
 
     public void initializeControlsView() {
@@ -233,6 +235,9 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 return;
             }
             ViewCompat.postInvalidateOnAnimation(this);
+        } else if (stopCamera){
+            quickCamera.stopPreview();
+            stopCamera = false;
         }
     }
 
@@ -245,12 +250,19 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         switch (drawerState) {
             case COLLAPSED:
                 smoothSlideTo(0);
+                stopCamera = true;
                 break;
             case HALF_EXPANDED:
                 smoothSlideTo(anchorPoint);
+                stopCamera = false;
+                if (!quickCamera.isStarted())
+                    quickCamera.startPreview();
                 break;
             case FULL_EXPANDED:
                 smoothSlideTo(1.f);
+                stopCamera = false;
+                if (!quickCamera.isStarted())
+                    quickCamera.startPreview();
                 break;
         }
     }
@@ -310,6 +322,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                     target = computePanelTopPosition(slideOffset > anchorPoint ? anchorPoint : 0.0f);
                     drawerState = slideOffset > anchorPoint ? DrawerState.HALF_EXPANDED : DrawerState.COLLAPSED;
                     fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    if (drawerState == DrawerState.COLLAPSED)
+                        stopCamera = true;
                 } else if (anchorPoint != 1 && slideOffset >= (1.f + anchorPoint) / 2) {
                     target = computePanelTopPosition(1.0f);
                     drawerState = DrawerState.FULL_EXPANDED;
@@ -331,6 +345,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                     target = computePanelTopPosition(0.0f);
                     drawerState = DrawerState.COLLAPSED;
                     fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    quickCamera.stopPreview();
                 }
 
                 dragHelper.captureChildView(coverView, 0);
@@ -421,7 +436,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         return getMeasuredHeight() - getPaddingBottom() - slidePixelOffset;
     }
 
-    void smoothSlideTo(float slideOffset) {
+    private void smoothSlideTo(float slideOffset) {
         int panelTop = computePanelTopPosition(slideOffset);
         dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), panelTop - coverView.getHeight());
         dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), panelTop);
@@ -432,6 +447,14 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private float computeSlideOffset(int topPosition) {
         final int topBoundCollapsed = computePanelTopPosition(0);
         return (float) (topBoundCollapsed - topPosition) / slideRange;
+    }
+
+    public void onPause() {
+        quickCamera.stopPreview();
+    }
+
+    public void onResume() {
+        quickCamera.startPreview();
     }
 
     @Override

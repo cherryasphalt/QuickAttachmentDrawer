@@ -13,6 +13,8 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -34,8 +36,8 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         this.callback = callback;
         started = false;
         try {
-            camera = getCameraInstance(cameraId);
             ViewGroup.LayoutParams layoutParams;
+            camera = getCameraInstance(cameraId);
             initializeCamera();
             if (cameraParameters != null) {
                 if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT)
@@ -49,9 +51,14 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             surfaceHolder = getHolder();
             surfaceHolder.addCallback(this);
             surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+            stopPreview();
         } catch (RuntimeException e) {
-
+            e.printStackTrace();
         }
+    }
+
+    public void setCallback(Callback callback) {
+        this.callback = callback;
     }
 
     private Camera getCameraInstance(int cameraId) throws RuntimeException {
@@ -106,16 +113,17 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public void stopPreview() {
-        started = false;
         if (camera != null) {
             camera.stopPreview();
             camera.release();
             camera = null;
+            started = false;
         }
     }
 
-    /*
-    public void takePicture(final QuickMediaPreview.Callback callback) {
+
+    //TODO: crop photo based on viewport and store in ram, not disk
+    public void takePicture() {
         if (camera != null) {
             camera.takePicture(null, null, new Camera.PictureCallback() {
                 @Override
@@ -138,7 +146,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                 }
             });
         }
-    }*/
+    }
 
     private void initializeCamera() {
         DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
@@ -227,5 +235,6 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
     public interface Callback {
         public void displayCameraInUseCopy(boolean inUse);
+        public void onImageCapture(Uri imageUri);
     }
 }

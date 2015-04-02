@@ -10,13 +10,17 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:background="#16efd7">
-        <hu.calvin.quickmediadrawer.ResizeableImageView
-            android:id="@+id/sample_imageview"
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="3dp"
-            android:minHeight="100dp"
-            android:background="#dddddd"/>
+            android:layout_height="300dp">
+            <hu.calvin.quickmediadrawer.ResizeableImageView
+                android:id="@+id/sample_imageview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="20dp"
+                android:minHeight="100dp"
+                android:background="#dddddd"/>
+        </ScrollView>
         <View
             android:layout_width="match_parent"
             android:layout_height="0dp"

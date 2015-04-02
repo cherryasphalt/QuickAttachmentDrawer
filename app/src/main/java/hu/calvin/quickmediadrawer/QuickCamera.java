@@ -2,14 +2,20 @@ package hu.calvin.quickmediadrawer;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.hardware.Camera;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import java.io.File;
@@ -99,12 +105,10 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        //startPreview();
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
-        //startPreview();
     }
 
     @Override
@@ -128,21 +132,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             camera.takePicture(null, null, new Camera.PictureCallback() {
                 @Override
                 public void onPictureTaken(byte[] data, Camera camera) {
-                    File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
-                    if (pictureFile == null){
-                        return;
-                    }
-
-                    try {
-                        FileOutputStream fos = new FileOutputStream(pictureFile);
-                        fos.write(data);
-                        fos.close();
-                    } catch (FileNotFoundException e) {
-                        Log.d(TAG, "File not found: " + e.getMessage());
-                    } catch (IOException e) {
-                        Log.d(TAG, "Error accessing file: " + e.getMessage());
-                    }
-                    callback.onImageCapture(getOutputMediaFileUri(MEDIA_TYPE_IMAGE));
+                    new FormatImageAsyncTask().execute(data);
                 }
             });
         }
@@ -153,13 +143,18 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         int width = displayMetrics.widthPixels;
         int height = displayMetrics.heightPixels;
         if (camera != null) {
+            Camera.CameraInfo info = new Camera.CameraInfo();
+            android.hardware.Camera.getCameraInfo(cameraId, info);
             cameraParameters = camera.getParameters();
             Camera.Size previewSize;
-            if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT)
-                previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), height, width);
-            else
+            cameraParameters.setRotation(info.orientation);
+            camera.setDisplayOrientation(info.orientation);
+            if (info.orientation == 0 || info.orientation == 180)
                 previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
-            cameraParameters.setPreviewSize(previewSize.width, previewSize.height);
+            else
+                previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), height, width);
+            if (previewSize != null)
+                cameraParameters.setPreviewSize(previewSize.width, previewSize.height);
         }
     }
 
@@ -174,7 +169,6 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                 initializeCamera();
                 int rotation = (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT ? 90 : 0);
                 camera.setParameters(cameraParameters);
-                camera.setDisplayOrientation(rotation);
                 camera.setPreviewDisplay(surfaceHolder);
             }
             camera.startPreview();
@@ -236,5 +230,32 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     public interface Callback {
         public void displayCameraInUseCopy(boolean inUse);
         public void onImageCapture(Uri imageUri);
+    }
+
+    public class FormatImageAsyncTask extends AsyncTask<byte[], Void, Uri> {
+        @Override
+        protected Uri doInBackground(byte[]... params) {
+            byte[] data = params[0];
+            File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
+            if (pictureFile == null){
+                return null;
+            }
+            try {
+                FileOutputStream fos = new FileOutputStream(pictureFile);
+                fos.write(data);
+                fos.close();
+            } catch (FileNotFoundException e) {
+                Log.d(TAG, "File not found: " + e.getMessage());
+            } catch (IOException e) {
+                Log.d(TAG, "Error accessing file: " + e.getMessage());
+            }
+            return getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
+        }
+
+        @Override
+        protected void onPostExecute(Uri resultUri) {
+            if (resultUri != null)
+                callback.onImageCapture(resultUri);
+        }
     }
 }

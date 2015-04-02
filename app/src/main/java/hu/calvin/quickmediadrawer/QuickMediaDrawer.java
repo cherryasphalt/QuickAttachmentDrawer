@@ -5,6 +5,7 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.ViewDragHelper;
@@ -519,5 +520,4 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         }
 
     }
-
 }

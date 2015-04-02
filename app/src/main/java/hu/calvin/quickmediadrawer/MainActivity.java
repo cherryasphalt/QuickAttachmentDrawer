@@ -4,6 +4,7 @@ import android.content.ContentResolver;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.support.v7.app.ActionBarActivity;
@@ -106,9 +107,31 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
             InputStream in = cr.openInputStream(imageUri);
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inSampleSize=8;
-            Bitmap thumb = BitmapFactory.decodeStream(in,null,options);
-            imageView.setImageBitmap(thumb);
+            Bitmap thumbnail = BitmapFactory.decodeStream(in,null,options);
+
+            ExifInterface exif = new ExifInterface(imageUri.getPath());
+            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
+
+            Matrix matrix = new Matrix();
+            switch (orientation) {
+                case ExifInterface.ORIENTATION_NORMAL:
+                    matrix.postRotate(0);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_90:
+                    matrix.postRotate(270);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_180:
+                    matrix.postRotate(180);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_270:
+                    matrix.postRotate(90);
+                    break;
+            }
+            thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), matrix, true);
+            imageView.setImageBitmap(thumbnail);
         } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }

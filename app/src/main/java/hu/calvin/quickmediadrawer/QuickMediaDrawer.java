@@ -65,7 +65,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         controls.findViewById(R.id.shutter_button).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickCamera.takePicture();
+                quickCamera.takePicture(drawerState == DrawerState.FULL_EXPANDED);
             }
         });
 
@@ -116,17 +116,19 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             final int childHeight = child.getMeasuredHeight();
             int childTop = paddingTop;
             int childBottom;
+            int childLeft = paddingLeft;
 
             if (child == quickCamera) {
-                childTop = computeCameraTopPosition(slideOffset) - baseHalfHeight;
+                childTop = computeCameraTopPosition(slideOffset);
                 childBottom = childTop + childHeight;
+                if (quickCamera.getMeasuredWidth() < getMeasuredWidth())
+                    childLeft = (getMeasuredWidth() - quickCamera.getMeasuredWidth()) / 2 + paddingLeft;
             } else if (child == controls){
                 childBottom = getMeasuredHeight();
             } else {
                 childBottom = computeCoverBottomPosition(slideOffset);
                 childTop = childBottom - childHeight;
             }
-            final int childLeft = paddingLeft;
             final int childRight = childLeft + child.getMeasuredWidth();
 
             child.layout(childLeft, childTop, childRight, childBottom);
@@ -136,7 +138,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 int anchorHeight = slideRange - baseHalfHeight;
                 anchorPoint = computeSlideOffset(anchorHeight);
             } else if (initialSetup && child == quickCamera) {
-                cameraSlideRange = quickCamera.getMeasuredHeight() - baseHalfHeight;
+                cameraSlideRange = getMeasuredHeight();
             }
         }
         initialSetup = false;
@@ -357,7 +359,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 dragHelper.captureChildView(coverView, 0);
                 dragHelper.settleCapturedViewAt(coverView.getLeft(), computeCoverBottomPosition(offset) - coverView.getHeight());
                 dragHelper.captureChildView(quickCamera, 0);
-                dragHelper.settleCapturedViewAt(quickCamera.getLeft(), computeCameraTopPosition(offset) - baseHalfHeight);
+                dragHelper.settleCapturedViewAt(quickCamera.getLeft(), computeCameraTopPosition(offset));
+                postInvalidateOnAnimation();
             }
         }
 
@@ -440,8 +443,11 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     }
 
     private int computeCameraTopPosition(float slideOffset) {
-        int slidePixelOffset = (int) (slideOffset * cameraSlideRange);
-        return quickCamera.getMeasuredHeight() - slidePixelOffset;
+        float clampedOffset = slideOffset - anchorPoint;
+        clampedOffset = clampedOffset < 0.f ? 0.f : clampedOffset / (1.f - anchorPoint);
+        int slidePixelOffset = (int) (slideOffset * cameraSlideRange + (baseHalfHeight / 2 - (baseHalfHeight / 2 * clampedOffset)));
+        int marginPixelOffset = (int) ((getMeasuredHeight() - quickCamera.getMeasuredHeight()) / 2 * clampedOffset);
+        return getMeasuredHeight() - slidePixelOffset + marginPixelOffset;
     }
 
     private int computeCoverBottomPosition(float slideOffset) {
@@ -451,7 +457,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
     private void smoothSlideTo(float slideOffset) {
         dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), computeCoverBottomPosition(slideOffset) - coverView.getHeight());
-        dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), computeCameraTopPosition(slideOffset) - baseHalfHeight);
+        dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), computeCameraTopPosition(slideOffset));
         ViewCompat.postInvalidateOnAnimation(this);
         this.slideOffset = slideOffset;
     }
@@ -459,11 +465,6 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private float computeSlideOffset(int topPosition) {
         final int topBoundCollapsed = computeCoverBottomPosition(0);
         return (float) (topBoundCollapsed - topPosition) / slideRange;
-    }
-
-    private float computeSlideOffsetFromCamera (int topCameraPosition) {
-        final int topBoundCollapsed = computeCameraTopPosition(0);
-        return (float) (topBoundCollapsed - topCameraPosition) / slideRange;
     }
 
     public void onPause() {

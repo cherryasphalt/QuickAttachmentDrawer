@@ -2,6 +2,7 @@ package hu.calvin.quickmediadrawer;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.Canvas;
 import android.hardware.Camera;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -33,11 +34,13 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     private int cameraId = Camera.CameraInfo.CAMERA_FACING_BACK;
     private Callback callback;
     private Camera.Parameters cameraParameters;
+    private boolean savingImage;
 
     public QuickCamera(Context context, Callback callback) {
         super(context);
         this.callback = callback;
         started = false;
+        savingImage = false;
         try {
             ViewGroup.LayoutParams layoutParams;
             camera = getCameraInstance(cameraId);
@@ -122,9 +125,13 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+    @Override
+    protected void onDraw (Canvas canvas) {
+
+    }
 
     //TODO: crop photo based on viewport and store in ram, not disk
-    public void takePicture() {
+    public void takePicture(boolean full) {
         if (camera != null) {
             camera.takePicture(null, null, new Camera.PictureCallback() {
                 @Override
@@ -247,18 +254,20 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public interface Callback {
-        public void displayCameraInUseCopy(boolean inUse);
-        public void onImageCapture(Uri imageUri);
+        void displayCameraInUseCopy(boolean inUse);
+        void onImageCapture(Uri imageUri);
     }
 
     public class FormatImageAsyncTask extends AsyncTask<byte[], Void, Uri> {
         @Override
         protected Uri doInBackground(byte[]... params) {
+            if (savingImage)
+                return null;
             byte[] data = params[0];
             File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
-            if (pictureFile == null){
+            if (pictureFile == null)
                 return null;
-            }
+            savingImage = true;
             try {
                 FileOutputStream fos = new FileOutputStream(pictureFile);
                 fos.write(data);
@@ -273,8 +282,10 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
         @Override
         protected void onPostExecute(Uri resultUri) {
-            if (resultUri != null)
+            if (resultUri != null) {
                 callback.onImageCapture(resultUri);
+                savingImage = false;
+            }
         }
     }
 }

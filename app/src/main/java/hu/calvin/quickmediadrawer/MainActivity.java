@@ -88,20 +88,17 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
 
     @Override
     public void onPanelCollapsed() {
-        if (actionBar != null)
-            actionBar.show();
+        if (actionBar != null) actionBar.show();
     }
 
     @Override
     public void onPanelExpanded() {
-        if (actionBar != null)
-            actionBar.hide();
+        if (actionBar != null) actionBar.hide();
     }
 
     @Override
     public void onPanelHalfExpanded() {
-        if (actionBar != null)
-            actionBar.hide();
+        if (actionBar != null) actionBar.hide();
     }
 
     @Override

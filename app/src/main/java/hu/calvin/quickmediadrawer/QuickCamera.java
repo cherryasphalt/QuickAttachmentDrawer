@@ -147,8 +147,30 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             android.hardware.Camera.getCameraInfo(cameraId, info);
             cameraParameters = camera.getParameters();
             Camera.Size previewSize;
-            cameraParameters.setRotation(info.orientation);
-            camera.setDisplayOrientation(info.orientation);
+            int rotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
+            int degrees = 0;
+            switch (rotation) {
+                case Surface.ROTATION_0: degrees = 0; break;
+                case Surface.ROTATION_90: degrees = 90; break;
+                case Surface.ROTATION_180: degrees = 180; break;
+                case Surface.ROTATION_270: degrees = 270; break;
+            }
+            int derivedOrientation;
+            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                derivedOrientation = (info.orientation + degrees) % 360;
+                derivedOrientation = (360 - derivedOrientation) % 360;  // compensate the mirror
+            } else {
+                derivedOrientation = (info.orientation - degrees + 360) % 360;
+            }
+            camera.setDisplayOrientation(derivedOrientation);
+
+            int derivedRotation;
+            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                derivedRotation = (info.orientation - degrees + 360) % 360;
+            } else {
+                derivedRotation = (info.orientation + degrees) % 360;
+            }
+            cameraParameters.setRotation(derivedRotation);
             if (info.orientation == 0 || info.orientation == 180)
                 previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
             else

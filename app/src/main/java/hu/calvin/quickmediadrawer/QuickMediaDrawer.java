@@ -11,8 +11,10 @@ import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.ViewDragHelper;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ImageButton;
 
 public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback {
@@ -32,6 +34,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private boolean initialSetup;
     private boolean stopCamera;
     private QuickMediaDrawerListener listener;
+    private boolean landscape;
 
     public QuickMediaDrawer(Context context) {
         this(context, null);
@@ -48,6 +51,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         quickCamera = new QuickCamera(context, this);
         controls = inflate(getContext(), R.layout.quick_camera_controls, null);
         anchorPoint = 0f;
+        int rotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
+        landscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270;
         initializeControlsView();
         addView(quickCamera);
         addView(controls);
@@ -79,16 +84,10 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         fullScreenButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                switch (drawerState) {
-                    case HALF_EXPANDED:
-                        setDrawerState(DrawerState.FULL_EXPANDED);
-                        fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
-                        break;
-                    case FULL_EXPANDED:
-                        setDrawerState(DrawerState.HALF_EXPANDED);
-                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
-                        break;
-                }
+                if (drawerState == DrawerState.HALF_EXPANDED || drawerState == DrawerState.COLLAPSED)
+                    setDrawerState(DrawerState.FULL_EXPANDED);
+                else
+                    setDrawerState(landscape ? DrawerState.COLLAPSED : DrawerState.HALF_EXPANDED);
             }
         });
     }
@@ -258,16 +257,19 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             case COLLAPSED:
                 smoothSlideTo(0);
                 stopCamera = true;
+                fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                 break;
             case HALF_EXPANDED:
                 smoothSlideTo(anchorPoint);
                 stopCamera = false;
+                fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                 if (!quickCamera.isStarted())
                     quickCamera.startPreview();
                 break;
             case FULL_EXPANDED:
                 smoothSlideTo(1.f);
                 stopCamera = false;
+                fullScreenButton.setImageResource(landscape ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
                 if (!quickCamera.isStarted())
                     quickCamera.startPreview();
                 break;
@@ -326,27 +328,30 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                     fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
                 } else if (direction < -500) {
                     // swipe down -> collapse
-                    target = computePanelTopPosition(slideOffset > anchorPoint ? anchorPoint : 0.0f);
-                    drawerState = slideOffset > anchorPoint ? DrawerState.HALF_EXPANDED : DrawerState.COLLAPSED;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    boolean halfExpand = (slideOffset > anchorPoint && !landscape);
+                    target = computePanelTopPosition(halfExpand ? anchorPoint : 0.0f);
+                    drawerState = halfExpand ? DrawerState.HALF_EXPANDED : DrawerState.COLLAPSED;
+                    fullScreenButton.setImageResource(halfExpand ? R.drawable.quick_camera_fullscreen : R.drawable.quick_camera_hide);
                     if (drawerState == DrawerState.COLLAPSED)
                         stopCamera = true;
-                } else if (anchorPoint != 1 && slideOffset >= (1.f + anchorPoint) / 2) {
-                    target = computePanelTopPosition(1.0f);
-                    drawerState = DrawerState.FULL_EXPANDED;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
-                } else if (anchorPoint == 1 && slideOffset >= 0.5f) {
-                    target = computePanelTopPosition(1.0f);
-                    drawerState = DrawerState.FULL_EXPANDED;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
-                } else if (anchorPoint != 1 && slideOffset >= anchorPoint) {
-                    target = computePanelTopPosition(anchorPoint);
-                    drawerState = DrawerState.HALF_EXPANDED;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
-                } else if (anchorPoint != 1 && slideOffset >= anchorPoint / 2) {
-                    target = computePanelTopPosition(anchorPoint);
-                    drawerState = DrawerState.HALF_EXPANDED;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                } else if (!landscape) {
+                    if (anchorPoint != 1 && slideOffset >= (1.f + anchorPoint) / 2) {
+                        target = computePanelTopPosition(1.0f);
+                        drawerState = DrawerState.FULL_EXPANDED;
+                        fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
+                    } else if (anchorPoint == 1 && slideOffset >= 0.5f) {
+                        target = computePanelTopPosition(1.0f);
+                        drawerState = DrawerState.FULL_EXPANDED;
+                        fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
+                    } else if (anchorPoint != 1 && slideOffset >= anchorPoint) {
+                        target = computePanelTopPosition(anchorPoint);
+                        drawerState = DrawerState.HALF_EXPANDED;
+                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    } else if (anchorPoint != 1 && slideOffset >= anchorPoint / 2) {
+                        target = computePanelTopPosition(anchorPoint);
+                        drawerState = DrawerState.HALF_EXPANDED;
+                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    }
                 } else {
                     // settle at the bottom
                     target = computePanelTopPosition(0.0f);

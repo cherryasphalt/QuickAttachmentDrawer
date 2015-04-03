@@ -211,15 +211,12 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         boolean result;
         final int save = canvas.save(Canvas.CLIP_SAVE_FLAG);
 
-        if (child == coverView) {
-            canvas.getClipBounds(mTmpRect);
+        canvas.getClipBounds(mTmpRect);
+        if (child == coverView)
             mTmpRect.bottom = Math.min(mTmpRect.bottom, child.getBottom());
-            canvas.clipRect(mTmpRect);
-        } else {
-            canvas.getClipBounds(mTmpRect);
+        else
             mTmpRect.top = Math.max(mTmpRect.top, coverView.getBottom());
-            canvas.clipRect(mTmpRect);
-        }
+        canvas.clipRect(mTmpRect);
         result = super.drawChild(canvas, child, drawingTime);
         canvas.restoreToCount(save);
 
@@ -445,7 +442,9 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private int computeCameraTopPosition(float slideOffset) {
         float clampedOffset = slideOffset - anchorPoint;
         clampedOffset = clampedOffset < 0.f ? 0.f : clampedOffset / (1.f - anchorPoint);
-        int slidePixelOffset = (int) (slideOffset * cameraSlideRange + (baseHalfHeight / 2 - (baseHalfHeight / 2 * clampedOffset)));
+        int slidePixelOffset = (int) (slideOffset * cameraSlideRange +
+                //center the half expanded camera
+                (baseHalfHeight / 2 - (baseHalfHeight / 2 * clampedOffset)));
         int marginPixelOffset = (int) ((getMeasuredHeight() - quickCamera.getMeasuredHeight()) / 2 * clampedOffset);
         return getMeasuredHeight() - slidePixelOffset + marginPixelOffset;
     }

@@ -2,10 +2,14 @@ package hu.calvin.quickmediadrawer;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapRegionDecoder;
 import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.hardware.Camera;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -131,12 +135,12 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     //TODO: crop photo based on viewport and store in ram, not disk
-    public void takePicture(boolean full) {
+    public void takePicture(final boolean crop, final Rect fullPreviewRect, final Rect croppedPreviewRect) {
         if (camera != null) {
             camera.takePicture(null, null, new Camera.PictureCallback() {
                 @Override
                 public void onPictureTaken(byte[] data, Camera camera) {
-                    new FormatImageAsyncTask().execute(data);
+                    new FormatImageAsyncTask().execute(data, crop, fullPreviewRect, croppedPreviewRect);
                 }
             });
         }
@@ -258,20 +262,50 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         void onImageCapture(Uri imageUri);
     }
 
-    public class FormatImageAsyncTask extends AsyncTask<byte[], Void, Uri> {
+    public class FormatImageAsyncTask extends AsyncTask<Object, Void, Uri> {
         @Override
-        protected Uri doInBackground(byte[]... params) {
+        protected Uri doInBackground(Object... params) {
             if (savingImage)
                 return null;
-            byte[] data = params[0];
+            byte[] data = (byte[]) params[0];
+            boolean crop = (Boolean) params[1];
+            Rect fullPreviewRect = (Rect) params[2];
+            Rect croppedPreviewRect = (Rect) params[3];
+
             File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
             if (pictureFile == null)
                 return null;
             savingImage = true;
             try {
-                FileOutputStream fos = new FileOutputStream(pictureFile);
-                fos.write(data);
-                fos.close();
+                if (crop && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
+                    BitmapRegionDecoder decoder = BitmapRegionDecoder.newInstance(data, 0, data.length, false);
+                    int realHeight = decoder.getHeight();
+                    int realWidth = decoder.getWidth();
+                    float widthRatio = (float) realWidth / (float) fullPreviewRect.width();
+                    float heightRatio = (float) realHeight / (float) fullPreviewRect.height();
+
+                    float newWidth = widthRatio * (float) croppedPreviewRect.width();
+                    float newHeight = heightRatio * (float) croppedPreviewRect.height();
+
+                    float centerX = realWidth / 2;
+                    float centerY = realHeight / 2;
+
+                    Rect croppedRect = new Rect();
+                    croppedRect.set((int) (centerX - newWidth / 2),
+                            (int) (centerY - newHeight / 2),
+                            (int) (centerX + newWidth / 2),
+                            (int) (centerY + newHeight / 2));
+
+                    Bitmap croppedBitmap = decoder.decodeRegion(croppedRect, null);
+                    decoder.recycle();
+                    FileOutputStream fos = new FileOutputStream(pictureFile);
+                    croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                    fos.close();
+                } else {
+                    FileOutputStream fos = new FileOutputStream(pictureFile);
+                    fos.write(data);
+                    fos.close();
+                }
             } catch (FileNotFoundException e) {
                 Log.d(TAG, "File not found: " + e.getMessage());
             } catch (IOException e) {

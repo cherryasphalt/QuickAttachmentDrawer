@@ -65,7 +65,11 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         controls.findViewById(R.id.shutter_button).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickCamera.takePicture(drawerState == DrawerState.FULL_EXPANDED);
+                Rect fullPreviewRect = new Rect();
+                fullPreviewRect.set(0, 0, quickCamera.getMeasuredWidth(), quickCamera.getMeasuredHeight());
+                Rect croppedPreviewRect = new Rect();
+                croppedPreviewRect.set(0, 0, quickCamera.getMeasuredWidth(), baseHalfHeight);
+                quickCamera.takePicture(drawerState != DrawerState.FULL_EXPANDED, fullPreviewRect, croppedPreviewRect);
             }
         });
 

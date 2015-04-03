@@ -6,7 +6,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.ExifInterface;
 import android.net.Uri;
-import android.provider.MediaStore;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -22,6 +22,7 @@ import java.io.InputStream;
 public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.QuickMediaDrawerListener {
     QuickMediaDrawer quickMediaDrawer;
     ImageView imageView;
+    ActionBar actionBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,6 +49,7 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
                 quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.FULL_EXPANDED);
             }
         });
+        actionBar = getSupportActionBar();
     }
 
     @Override
@@ -86,17 +88,20 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
 
     @Override
     public void onPanelCollapsed() {
-
+        if (actionBar != null)
+            actionBar.show();
     }
 
     @Override
     public void onPanelExpanded() {
-
+        if (actionBar != null)
+            actionBar.hide();
     }
 
     @Override
     public void onPanelHalfExpanded() {
-
+        if (actionBar != null)
+            actionBar.hide();
     }
 
     @Override
@@ -107,7 +112,7 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
             InputStream in = cr.openInputStream(imageUri);
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inSampleSize=8;
-            Bitmap thumbnail = BitmapFactory.decodeStream(in,null,options);
+            Bitmap thumbnail = BitmapFactory.decodeStream(in, null, options);
 
             ExifInterface exif = new ExifInterface(imageUri.getPath());
             int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);

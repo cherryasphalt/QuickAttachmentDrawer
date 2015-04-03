@@ -5,7 +5,6 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.ViewDragHelper;
@@ -19,10 +18,10 @@ import android.widget.ImageButton;
 
 public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback {
     //TODO: Make intdef to avoid dex method limit
-    public static enum DrawerState {COLLAPSED, HALF_EXPANDED, FULL_EXPANDED};
+    public enum DrawerState {COLLAPSED, HALF_EXPANDED, FULL_EXPANDED};
     private DrawerState drawerState;
     private View coverView;
-    private int slideRange;
+    private int slideRange, cameraSlideRange;
     private float slideOffset;
     private final ViewDragHelper dragHelper;
     private final QuickCamera quickCamera;
@@ -35,6 +34,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private boolean stopCamera;
     private QuickMediaDrawerListener listener;
     private boolean landscape;
+    private int baseHalfHeight;
 
     public QuickMediaDrawer(Context context) {
         this(context, null);
@@ -58,6 +58,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         addView(controls);
         initialSetup = true;
         stopCamera = false;
+        baseHalfHeight = getResources().getDimensionPixelSize(R.dimen.quick_media_drawer_default_height);
     }
 
     public void initializeControlsView() {
@@ -112,22 +113,17 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         for (int i = 0; i < childCount; i++) {
             final View child = getChildAt(i);
 
-            // Always layout the sliding view on the first layout
-            /*if (child.getVisibility() == GONE && (i == 0 || mFirstLayout)) {
-                continue;
-            }*/
-
             final int childHeight = child.getMeasuredHeight();
             int childTop = paddingTop;
             int childBottom;
 
             if (child == quickCamera) {
-                childTop = computePanelTopPosition(slideOffset);
+                childTop = computeCameraTopPosition(slideOffset) - baseHalfHeight;
                 childBottom = childTop + childHeight;
             } else if (child == controls){
                 childBottom = getMeasuredHeight();
             } else {
-                childBottom = computePanelTopPosition(slideOffset);
+                childBottom = computeCoverBottomPosition(slideOffset);
                 childTop = childBottom - childHeight;
             }
             final int childLeft = paddingLeft;
@@ -137,11 +133,13 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
             if (initialSetup && child == coverView) {
                 slideRange = getMeasuredHeight();
-                int anchorHeight = slideRange - getResources().getDimensionPixelSize(R.dimen.quick_media_drawer_default_height);
+                int anchorHeight = slideRange - baseHalfHeight;
                 anchorPoint = computeSlideOffset(anchorHeight);
-                initialSetup = false;
+            } else if (initialSetup && child == quickCamera) {
+                cameraSlideRange = quickCamera.getMeasuredHeight() - baseHalfHeight;
             }
         }
+        initialSetup = false;
     }
 
     @Override
@@ -162,24 +160,17 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             throw new IllegalStateException("QuickMediaDrawer layouts may only have 1 child.");
 
         coverView = getChildAt(2);
-
         int layoutHeight = heightSize - getPaddingTop() - getPaddingBottom();
 
-        // First pass. Measure based on child LayoutParams width/height.
         for (int i = 0; i < childCount; i++) {
             final View child = getChildAt(i);
             final LayoutParams lp = (QuickMediaDrawer.LayoutParams) child.getLayoutParams();
 
-            // We always measure the sliding panel in order to know it's height (needed for show panel)
             if (child.getVisibility() == GONE && i == 0) {
                 continue;
             }
 
             int height = layoutHeight;
-            /*if (child == mMainView && !mOverlayContent && mSlideState != PanelState.HIDDEN) {
-                height -= mPanelHeight;
-            }*/
-
             int childWidthSpec;
             switch (lp.width) {
                 case LayoutParams.WRAP_CONTENT:
@@ -218,7 +209,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         boolean result;
         final int save = canvas.save(Canvas.CLIP_SAVE_FLAG);
 
-        if (coverView == child) {
+        if (child == coverView) {
             canvas.getClipBounds(mTmpRect);
             mTmpRect.bottom = Math.min(mTmpRect.bottom, child.getBottom());
             canvas.clipRect(mTmpRect);
@@ -255,11 +246,13 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         this.drawerState = drawerState;
         switch (drawerState) {
             case COLLAPSED:
-                smoothSlideTo(0);
+                if (listener != null) listener.onPanelCollapsed();
+                smoothSlideTo(0f);
                 stopCamera = true;
                 fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                 break;
             case HALF_EXPANDED:
+                if (listener != null) listener.onPanelHalfExpanded();
                 smoothSlideTo(anchorPoint);
                 stopCamera = false;
                 fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
@@ -267,6 +260,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                     quickCamera.startPreview();
                 break;
             case FULL_EXPANDED:
+                if (listener != null) listener.onPanelExpanded();
                 smoothSlideTo(1.f);
                 stopCamera = false;
                 fullScreenButton.setImageResource(landscape ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
@@ -281,10 +275,10 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     }
 
     public interface QuickMediaDrawerListener {
-        public void onPanelCollapsed();
-        public void onPanelExpanded();
-        public void onPanelHalfExpanded();
-        public void onImageCapture(Uri imageUri);
+        void onPanelCollapsed();
+        void onPanelExpanded();
+        void onPanelHalfExpanded();
+        void onImageCapture(Uri imageUri);
     }
 
     private class ViewDragHelperCallback extends ViewDragHelper.Callback {
@@ -308,8 +302,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         @Override
         public void onViewPositionChanged(View changedView, int left, int top, int dx, int dy) {
             int newTop = coverView.getTop() + dy;
-            final int expandedTop = computePanelTopPosition(1.0f) - coverView.getHeight();
-            final int collapsedTop = computePanelTopPosition(0.0f) - coverView.getHeight();
+            final int expandedTop = computeCoverBottomPosition(1.0f) - coverView.getHeight();
+            final int collapsedTop = computeCoverBottomPosition(0.0f) - coverView.getHeight();
             newTop = Math.min(Math.max(newTop, expandedTop), collapsedTop);
             slideOffset = computeSlideOffset(newTop + coverView.getHeight());
             requestLayout();
@@ -318,57 +312,59 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         @Override
         public void onViewReleased(View releasedChild, float xvel, float yvel) {
             if (releasedChild == controls) {
-                int target = 0;
+                float offset = 0.f;
                 float direction = -yvel;
 
-                if (direction > 500) {
+                if (direction > 50) {
                     // swipe up -> expand
-                    target = computePanelTopPosition(1.0f);
                     drawerState = DrawerState.FULL_EXPANDED;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
-                } else if (direction < -500) {
+                } else if (direction < -50) {
                     // swipe down -> collapse
                     boolean halfExpand = (slideOffset > anchorPoint && !landscape);
-                    target = computePanelTopPosition(halfExpand ? anchorPoint : 0.0f);
                     drawerState = halfExpand ? DrawerState.HALF_EXPANDED : DrawerState.COLLAPSED;
-                    fullScreenButton.setImageResource(halfExpand ? R.drawable.quick_camera_fullscreen : R.drawable.quick_camera_hide);
-                    if (drawerState == DrawerState.COLLAPSED)
-                        stopCamera = true;
                 } else if (!landscape) {
                     if (anchorPoint != 1 && slideOffset >= (1.f + anchorPoint) / 2) {
-                        target = computePanelTopPosition(1.0f);
                         drawerState = DrawerState.FULL_EXPANDED;
-                        fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
                     } else if (anchorPoint == 1 && slideOffset >= 0.5f) {
-                        target = computePanelTopPosition(1.0f);
                         drawerState = DrawerState.FULL_EXPANDED;
-                        fullScreenButton.setImageResource(R.drawable.quick_camera_exit_fullscreen);
                     } else if (anchorPoint != 1 && slideOffset >= anchorPoint) {
-                        target = computePanelTopPosition(anchorPoint);
                         drawerState = DrawerState.HALF_EXPANDED;
-                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                     } else if (anchorPoint != 1 && slideOffset >= anchorPoint / 2) {
-                        target = computePanelTopPosition(anchorPoint);
                         drawerState = DrawerState.HALF_EXPANDED;
-                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                     }
                 } else {
-                    // settle at the bottom
-                    target = computePanelTopPosition(0.0f);
                     drawerState = DrawerState.COLLAPSED;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
-                    quickCamera.stopPreview();
                 }
 
+                switch (drawerState) {
+                    case COLLAPSED:
+                        if (listener != null) listener.onPanelCollapsed();
+                        offset = 0.0f;
+                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                        stopCamera = true;
+                        break;
+                    case HALF_EXPANDED:
+                        if (listener != null) listener.onPanelHalfExpanded();
+                        offset = anchorPoint;
+                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                        break;
+                    case FULL_EXPANDED:
+                        if (listener != null) listener.onPanelExpanded();
+                        offset = 1.0f;
+                        fullScreenButton.setImageResource(landscape ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
+                        break;
+                }
                 dragHelper.captureChildView(coverView, 0);
-                dragHelper.settleCapturedViewAt(coverView.getLeft(), target - coverView.getHeight());
+                dragHelper.settleCapturedViewAt(coverView.getLeft(), computeCoverBottomPosition(offset) - coverView.getHeight());
                 dragHelper.captureChildView(quickCamera, 0);
-                dragHelper.settleCapturedViewAt(quickCamera.getLeft(), target);
+                dragHelper.settleCapturedViewAt(quickCamera.getLeft(), computeCameraTopPosition(offset) - baseHalfHeight);
             }
         }
 
         @Override
         public int getViewVerticalDragRange(View child) {
+            if (child == quickCamera)
+                return cameraSlideRange;
             return slideRange;
         }
 
@@ -443,22 +439,31 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 screenY >= viewLocation[1] && screenY < viewLocation[1] + quickCamera.getHeight();
     }
 
-    private int computePanelTopPosition(float slideOffset) {
+    private int computeCameraTopPosition(float slideOffset) {
+        int slidePixelOffset = (int) (slideOffset * cameraSlideRange);
+        return quickCamera.getMeasuredHeight() - slidePixelOffset;
+    }
+
+    private int computeCoverBottomPosition(float slideOffset) {
         int slidePixelOffset = (int) (slideOffset * slideRange);
         return getMeasuredHeight() - getPaddingBottom() - slidePixelOffset;
     }
 
     private void smoothSlideTo(float slideOffset) {
-        int panelTop = computePanelTopPosition(slideOffset);
-        dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), panelTop - coverView.getHeight());
-        dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), panelTop);
+        dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), computeCoverBottomPosition(slideOffset) - coverView.getHeight());
+        dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), computeCameraTopPosition(slideOffset) - baseHalfHeight);
         ViewCompat.postInvalidateOnAnimation(this);
         this.slideOffset = slideOffset;
     }
 
     private float computeSlideOffset(int topPosition) {
-        final int topBoundCollapsed = computePanelTopPosition(0);
+        final int topBoundCollapsed = computeCoverBottomPosition(0);
         return (float) (topBoundCollapsed - topPosition) / slideRange;
+    }
+
+    private float computeSlideOffsetFromCamera (int topCameraPosition) {
+        final int topBoundCollapsed = computeCameraTopPosition(0);
+        return (float) (topBoundCollapsed - topCameraPosition) / slideRange;
     }
 
     public void onPause() {

@@ -14,6 +14,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -87,17 +88,17 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
     }
 
     @Override
-    public void onPanelCollapsed() {
+    public void onCollapsed() {
         if (actionBar != null) actionBar.show();
     }
 
     @Override
-    public void onPanelExpanded() {
+    public void onExpanded() {
         if (actionBar != null) actionBar.hide();
     }
 
     @Override
-    public void onPanelHalfExpanded() {
+    public void onHalfExpanded() {
         if (actionBar != null) actionBar.hide();
     }
 

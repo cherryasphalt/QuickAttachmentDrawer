@@ -3,6 +3,7 @@ package hu.calvin.quickmediadrawer;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.BitmapRegionDecoder;
 import android.graphics.Canvas;
 import android.graphics.Rect;
@@ -210,11 +211,11 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    private static Uri getOutputMediaFileUri(int type){
-        return Uri.fromFile(getOutputMediaFile(type));
+    private static Uri getOutputMediaFileUri(){
+        return Uri.fromFile(getOutputMediaFile());
     }
 
-    private static File getOutputMediaFile(int type){
+    private static File getOutputMediaFile(){
 
         File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
                 Environment.DIRECTORY_PICTURES), "ts_file");
@@ -228,15 +229,8 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         // Create a media file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File mediaFile;
-        if (type == MEDIA_TYPE_IMAGE){
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "IMG_"+ timeStamp + ".jpg");
-        } else if(type == MEDIA_TYPE_VIDEO) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                    "VID_"+ timeStamp + ".mp4");
-        } else {
-            return null;
-        }
+        mediaFile = new File(mediaStorageDir.getPath() + File.separator +
+                "IMG_" + timeStamp + ".jpg");
 
         return mediaFile;
     }
@@ -272,7 +266,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             Rect fullPreviewRect = (Rect) params[2];
             Rect croppedPreviewRect = (Rect) params[3];
 
-            File pictureFile = getOutputMediaFile(MEDIA_TYPE_IMAGE);
+            File pictureFile = getOutputMediaFile();
             if (pictureFile == null)
                 return null;
             savingImage = true;
@@ -301,6 +295,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                     FileOutputStream fos = new FileOutputStream(pictureFile);
                     croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
                     fos.close();
+                    croppedBitmap.recycle();
                 } else {
                     FileOutputStream fos = new FileOutputStream(pictureFile);
                     fos.write(data);
@@ -311,7 +306,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             } catch (IOException e) {
                 Log.d(TAG, "Error accessing file: " + e.getMessage());
             }
-            return getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
+            return Uri.fromFile(pictureFile);
         }
 
         @Override

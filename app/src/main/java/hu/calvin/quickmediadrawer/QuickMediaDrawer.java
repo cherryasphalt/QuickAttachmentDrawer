@@ -176,7 +176,6 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 continue;
             }
 
-            int height = layoutHeight;
             int childWidthSpec;
             switch (lp.width) {
                 case LayoutParams.WRAP_CONTENT:
@@ -193,10 +192,10 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             int childHeightSpec;
             switch (lp.height) {
                 case LayoutParams.WRAP_CONTENT:
-                    childHeightSpec = MeasureSpec.makeMeasureSpec(height, MeasureSpec.AT_MOST);
+                    childHeightSpec = MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.AT_MOST);
                     break;
                 case LayoutParams.MATCH_PARENT:
-                    childHeightSpec = MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY);
+                    childHeightSpec = MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY);
                     break;
                 default:
                     childHeightSpec = MeasureSpec.makeMeasureSpec(lp.height, MeasureSpec.EXACTLY);
@@ -249,13 +248,13 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         this.drawerState = drawerState;
         switch (drawerState) {
             case COLLAPSED:
-                if (listener != null) listener.onPanelCollapsed();
+                if (listener != null) listener.onCollapsed();
                 smoothSlideTo(0f);
                 stopCamera = true;
                 fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                 break;
             case HALF_EXPANDED:
-                if (listener != null) listener.onPanelHalfExpanded();
+                if (listener != null) listener.onHalfExpanded();
                 smoothSlideTo(anchorPoint);
                 stopCamera = false;
                 fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
@@ -263,7 +262,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                     quickCamera.startPreview();
                 break;
             case FULL_EXPANDED:
-                if (listener != null) listener.onPanelExpanded();
+                if (listener != null) listener.onExpanded();
                 smoothSlideTo(1.f);
                 stopCamera = false;
                 fullScreenButton.setImageResource(landscape ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
@@ -278,9 +277,9 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     }
 
     public interface QuickMediaDrawerListener {
-        void onPanelCollapsed();
-        void onPanelExpanded();
-        void onPanelHalfExpanded();
+        void onCollapsed();
+        void onExpanded();
+        void onHalfExpanded();
         void onImageCapture(Uri imageUri);
     }
 
@@ -319,10 +318,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 float direction = -yvel;
 
                 if (direction > 50) {
-                    // swipe up -> expand
                     drawerState = DrawerState.FULL_EXPANDED;
                 } else if (direction < -50) {
-                    // swipe down -> collapse
                     boolean halfExpand = (slideOffset > anchorPoint && !landscape);
                     drawerState = halfExpand ? DrawerState.HALF_EXPANDED : DrawerState.COLLAPSED;
                 } else if (!landscape) {
@@ -341,18 +338,18 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
                 switch (drawerState) {
                     case COLLAPSED:
-                        if (listener != null) listener.onPanelCollapsed();
+                        if (listener != null) listener.onCollapsed();
                         offset = 0.0f;
                         fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                         stopCamera = true;
                         break;
                     case HALF_EXPANDED:
-                        if (listener != null) listener.onPanelHalfExpanded();
+                        if (listener != null) listener.onHalfExpanded();
                         offset = anchorPoint;
                         fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                         break;
                     case FULL_EXPANDED:
-                        if (listener != null) listener.onPanelExpanded();
+                        if (listener != null) listener.onExpanded();
                         offset = 1.0f;
                         fullScreenButton.setImageResource(landscape ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
                         break;

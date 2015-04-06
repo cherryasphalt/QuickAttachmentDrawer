@@ -291,9 +291,6 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
         @Override
         public void onViewDragStateChanged(int state) {
-            if (dragHelper.getViewDragState() == ViewDragHelper.STATE_IDLE) {
-                slideOffset = computeSlideOffset(coverView.getBottom());
-            }
         }
 
         @Override

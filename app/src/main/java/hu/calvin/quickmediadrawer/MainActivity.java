@@ -137,4 +137,12 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
             e.printStackTrace();
         }
     }
+
+    @Override
+    public void onBackPressed() {
+        if (quickMediaDrawer.getDrawerState() != QuickMediaDrawer.DrawerState.COLLAPSED)
+            quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.COLLAPSED);
+        else
+            super.onBackPressed();
+    }
 }

@@ -103,8 +103,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     }
 
     @Override
-    public void onImageCapture(Uri imageUri) {
-        if (listener != null) listener.onImageCapture(imageUri);
+    public void onImageCapture(String imageFilename) {
+        if (listener != null) listener.onImageCapture(imageFilename);
     }
 
     @Override
@@ -208,7 +208,6 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         setMeasuredDimension(widthSize, heightSize);
     }
 
-
     @Override
     protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
         boolean result;
@@ -280,7 +279,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         void onCollapsed();
         void onExpanded();
         void onHalfExpanded();
-        void onImageCapture(Uri imageUri);
+        void onImageCapture(String imageFilename);
     }
 
     private class ViewDragHelperCallback extends ViewDragHelper.Callback {
@@ -442,12 +441,13 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
     private int computeCameraTopPosition(float slideOffset) {
         float clampedOffset = slideOffset - anchorPoint;
-        clampedOffset = clampedOffset < 0.f ? 0.f : clampedOffset / (1.f - anchorPoint);
+        clampedOffset = clampedOffset < 0.f ? 0.f : (clampedOffset / (1.f - anchorPoint));
         int slidePixelOffset = (int) (slideOffset * cameraSlideRange +
                 //center the half expanded camera
-                (baseHalfHeight / 2 - (baseHalfHeight / 2 * clampedOffset)));
+                (getMeasuredHeight() + baseHalfHeight) / 2 * (1.f - clampedOffset) / 2);
+        //center the camera vertically when it's smaller than the whole view
         int marginPixelOffset = (int) ((getMeasuredHeight() - quickCamera.getMeasuredHeight()) / 2 * clampedOffset);
-        return getMeasuredHeight() - slidePixelOffset + marginPixelOffset;
+        return getMeasuredHeight() - slidePixelOffset + marginPixelOffset - getPaddingBottom();
     }
 
     private int computeCoverBottomPosition(float slideOffset) {

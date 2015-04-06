@@ -155,6 +155,11 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             Camera.CameraInfo info = new Camera.CameraInfo();
             android.hardware.Camera.getCameraInfo(cameraId, info);
             cameraParameters = camera.getParameters();
+
+            List<String> focusModes = cameraParameters.getSupportedFocusModes();
+            if (focusModes.contains(Camera.Parameters.FOCUS_MODE_AUTO))
+               cameraParameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+
             Camera.Size previewSize;
             int rotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
             int degrees = 0;
@@ -211,28 +216,9 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    private static Uri getOutputMediaFileUri(){
-        return Uri.fromFile(getOutputMediaFile());
-    }
-
-    private static File getOutputMediaFile(){
-
-        File mediaStorageDir = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES), "ts_file");
-        if (! mediaStorageDir.exists()){
-            if (! mediaStorageDir.mkdirs()){
-                Log.d("ts_file", "failed to create directory");
-                return null;
-            }
-        }
-
-        // Create a media file name
+    private static String getOutputMediaFileName(){
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        File mediaFile;
-        mediaFile = new File(mediaStorageDir.getPath() + File.separator +
-                "IMG_" + timeStamp + ".jpg");
-
-        return mediaFile;
+        return "IMG_" + timeStamp + ".jpg";
     }
 
     public boolean isMultipleCameras() {
@@ -253,12 +239,12 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
     public interface Callback {
         void displayCameraInUseCopy(boolean inUse);
-        void onImageCapture(Uri imageUri);
+        void onImageCapture(String imageFilename);
     }
 
-    public class FormatImageAsyncTask extends AsyncTask<Object, Void, Uri> {
+    public class FormatImageAsyncTask extends AsyncTask<Object, Void, String> {
         @Override
-        protected Uri doInBackground(Object... params) {
+        protected String doInBackground(Object... params) {
             if (savingImage)
                 return null;
             byte[] data = (byte[]) params[0];
@@ -266,11 +252,10 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             Rect fullPreviewRect = (Rect) params[2];
             Rect croppedPreviewRect = (Rect) params[3];
 
-            File pictureFile = getOutputMediaFile();
-            if (pictureFile == null)
-                return null;
+            String pictureFileName = getOutputMediaFileName();
             savingImage = true;
             try {
+                FileOutputStream fos = getContext().openFileOutput(pictureFileName, Context.MODE_PRIVATE);
                 if (crop && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
                     BitmapRegionDecoder decoder = BitmapRegionDecoder.newInstance(data, 0, data.length, false);
                     int realHeight = decoder.getHeight();
@@ -292,27 +277,24 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
                     Bitmap croppedBitmap = decoder.decodeRegion(croppedRect, null);
                     decoder.recycle();
-                    FileOutputStream fos = new FileOutputStream(pictureFile);
                     croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-                    fos.close();
                     croppedBitmap.recycle();
                 } else {
-                    FileOutputStream fos = new FileOutputStream(pictureFile);
                     fos.write(data);
-                    fos.close();
                 }
+                fos.close();
             } catch (FileNotFoundException e) {
                 Log.d(TAG, "File not found: " + e.getMessage());
             } catch (IOException e) {
                 Log.d(TAG, "Error accessing file: " + e.getMessage());
             }
-            return Uri.fromFile(pictureFile);
+            return pictureFileName;
         }
 
         @Override
-        protected void onPostExecute(Uri resultUri) {
-            if (resultUri != null) {
-                callback.onImageCapture(resultUri);
+        protected void onPostExecute(String resultFilename) {
+            if (resultFilename != null) {
+                callback.onImageCapture(resultFilename);
                 savingImage = false;
             }
         }

@@ -1,6 +1,7 @@
 package hu.calvin.quickmediadrawer;
 
 import android.content.ContentResolver;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
@@ -103,16 +104,16 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
     }
 
     @Override
-    public void onImageCapture(Uri imageUri) {
+    public void onImageCapture(String imageFilename) {
         quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.COLLAPSED);
         ContentResolver cr = getContentResolver();
         try {
-            InputStream in = cr.openInputStream(imageUri);
+            InputStream in = openFileInput(imageFilename);
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inSampleSize=8;
             Bitmap thumbnail = BitmapFactory.decodeStream(in, null, options);
 
-            ExifInterface exif = new ExifInterface(imageUri.getPath());
+            ExifInterface exif = new ExifInterface(imageFilename);
             int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
 
             Matrix matrix = new Matrix();
@@ -130,10 +131,8 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
                     matrix.postRotate(90);
                     break;
             }
-            thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), matrix, true);
+            thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), null, true);
             imageView.setImageBitmap(thumbnail);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }

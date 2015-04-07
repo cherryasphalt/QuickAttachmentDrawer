@@ -3,15 +3,14 @@ package hu.calvin.quickmediadrawer;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.BitmapRegionDecoder;
 import android.graphics.Canvas;
+import android.graphics.ImageFormat;
 import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.hardware.Camera;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
-import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface;
@@ -21,7 +20,6 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,8 +28,6 @@ import java.util.Date;
 import java.util.List;
 
 public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
-    public static final int MEDIA_TYPE_IMAGE = 1;
-    public static final int MEDIA_TYPE_VIDEO = 2;
     private SurfaceHolder surfaceHolder;
     private Camera camera;
     private boolean started;
@@ -40,6 +36,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     private Callback callback;
     private Camera.Parameters cameraParameters;
     private boolean savingImage;
+    private int rotation;
 
     public QuickCamera(Context context, Callback callback) {
         super(context);
@@ -70,6 +67,10 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
     public void setCallback(Callback callback) {
         this.callback = callback;
+    }
+
+    public int getCameraRotation() {
+        return rotation;
     }
 
     private Camera getCameraInstance(int cameraId) throws RuntimeException {
@@ -138,10 +139,48 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     //TODO: crop photo based on viewport and store in ram, not disk
     public void takePicture(final boolean crop, final Rect fullPreviewRect, final Rect croppedPreviewRect) {
         if (camera != null) {
-            camera.takePicture(null, null, new Camera.PictureCallback() {
+            //use preview frame for faster capture/less memory usage
+            camera.setOneShotPreviewCallback(new Camera.PreviewCallback() {
                 @Override
-                public void onPictureTaken(byte[] data, Camera camera) {
-                    new FormatImageAsyncTask().execute(data, crop, fullPreviewRect, croppedPreviewRect);
+                public void onPreviewFrame(byte[] data, Camera camera) {
+                    if (savingImage) return;
+                    String pictureFileName = getOutputMediaFileName();
+                    savingImage = true;
+                    try {
+                        FileOutputStream fileOutputStream = getContext().openFileOutput(pictureFileName, Context.MODE_PRIVATE);
+                        int previewWidth = cameraParameters.getPreviewSize().width;
+                        int previewHeight = cameraParameters.getPreviewSize().height;
+                        YuvImage previewImage = new YuvImage(data, ImageFormat.NV21, previewWidth, previewHeight, null);
+
+                        if (crop && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
+                            float newWidth, newHeight;
+                            if (rotation == 90 || rotation == 270) {
+                                newWidth = croppedPreviewRect.height();
+                                newHeight = croppedPreviewRect.width();
+                            } else {
+                                newWidth = croppedPreviewRect.width();
+                                newHeight = croppedPreviewRect.height();
+                            }
+                            float centerX = previewWidth / 2;
+                            float centerY = previewHeight / 2;
+                            croppedPreviewRect.set((int) (centerX - newWidth / 2),
+                                    (int) (centerY - newHeight / 2),
+                                    (int) (centerX + newWidth / 2),
+                                    (int) (centerY + newHeight / 2));
+                            previewImage.compressToJpeg(croppedPreviewRect, 100, fileOutputStream);
+                        } else {
+                            if (rotation == 90 || rotation == 270)
+                                fullPreviewRect.set(0, 0, fullPreviewRect.height(), fullPreviewRect.width());
+                            previewImage.compressToJpeg(fullPreviewRect, 100, fileOutputStream);
+                        }
+                        fileOutputStream.close();
+                    } catch (FileNotFoundException e) {
+                        Log.d(TAG, "File not found: " + e.getMessage());
+                    } catch (IOException e) {
+                        Log.d(TAG, "Error accessing file: " + e.getMessage());
+                    }
+                    callback.onImageCapture(pictureFileName, rotation);
+                    savingImage = false;
                 }
             });
         }
@@ -161,9 +200,9 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                cameraParameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
 
             Camera.Size previewSize;
-            int rotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
+            int windowRotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
             int degrees = 0;
-            switch (rotation) {
+            switch (windowRotation) {
                 case Surface.ROTATION_0: degrees = 0; break;
                 case Surface.ROTATION_90: degrees = 90; break;
                 case Surface.ROTATION_180: degrees = 180; break;
@@ -178,13 +217,12 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             }
             camera.setDisplayOrientation(derivedOrientation);
 
-            int derivedRotation;
             if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                derivedRotation = (info.orientation - degrees + 360) % 360;
+                rotation = (info.orientation - degrees + 360) % 360;
             } else {
-                derivedRotation = (info.orientation + degrees) % 360;
+                rotation = (info.orientation + degrees) % 360;
             }
-            cameraParameters.setRotation(derivedRotation);
+            cameraParameters.setRotation(rotation);
             if (info.orientation == 0 || info.orientation == 180)
                 previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
             else
@@ -203,15 +241,12 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             if (camera == null) {
                 camera = getCameraInstance(cameraId);
                 initializeCamera();
-                int rotation = (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT ? 90 : 0);
                 camera.setParameters(cameraParameters);
                 camera.setPreviewDisplay(surfaceHolder);
             }
             camera.startPreview();
             started = true;
-        } catch (RuntimeException e) {
-            if (callback != null) callback.displayCameraInUseCopy(true);
-        } catch (IOException ie) {
+        } catch (RuntimeException | IOException e) {
             if (callback != null) callback.displayCameraInUseCopy(true);
         }
     }
@@ -239,7 +274,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
     public interface Callback {
         void displayCameraInUseCopy(boolean inUse);
-        void onImageCapture(String imageFilename);
+        void onImageCapture(String imageFilename, int rotation);
     }
 
     public class FormatImageAsyncTask extends AsyncTask<Object, Void, String> {
@@ -294,7 +329,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         @Override
         protected void onPostExecute(String resultFilename) {
             if (resultFilename != null) {
-                callback.onImageCapture(resultFilename);
+                callback.onImageCapture(resultFilename, rotation);
                 savingImage = false;
             }
         }

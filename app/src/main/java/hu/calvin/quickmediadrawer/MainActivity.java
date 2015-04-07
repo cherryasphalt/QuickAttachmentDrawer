@@ -104,33 +104,16 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
     }
 
     @Override
-    public void onImageCapture(String imageFilename) {
+    public void onImageCapture(String imageFilename, int rotation) {
         quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.COLLAPSED);
         ContentResolver cr = getContentResolver();
         try {
             InputStream in = openFileInput(imageFilename);
             BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize=8;
+            options.inSampleSize=1;
             Bitmap thumbnail = BitmapFactory.decodeStream(in, null, options);
-
-            ExifInterface exif = new ExifInterface(imageFilename);
-            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, 1);
-
             Matrix matrix = new Matrix();
-            switch (orientation) {
-                case ExifInterface.ORIENTATION_NORMAL:
-                    matrix.postRotate(0);
-                    break;
-                case ExifInterface.ORIENTATION_ROTATE_90:
-                    matrix.postRotate(270);
-                    break;
-                case ExifInterface.ORIENTATION_ROTATE_180:
-                    matrix.postRotate(180);
-                    break;
-                case ExifInterface.ORIENTATION_ROTATE_270:
-                    matrix.postRotate(90);
-                    break;
-            }
+            matrix.postRotate(rotation);
             thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), matrix, true);
             imageView.setImageBitmap(thumbnail);
         } catch (IOException e) {

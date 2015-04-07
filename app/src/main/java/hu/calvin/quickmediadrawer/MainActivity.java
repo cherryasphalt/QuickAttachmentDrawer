@@ -131,7 +131,7 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
                     matrix.postRotate(90);
                     break;
             }
-            thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), null, true);
+            thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), matrix, true);
             imageView.setImageBitmap(thumbnail);
         } catch (IOException e) {
             e.printStackTrace();

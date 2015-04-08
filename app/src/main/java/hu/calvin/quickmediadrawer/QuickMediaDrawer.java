@@ -105,7 +105,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     }
 
     @Override
-    public void onImageCapture(String imageFilename, int rotation) {
+    public void onImageCapture(final String imageFilename, final int rotation) {
         if (listener != null) listener.onImageCapture(imageFilename, rotation);
     }
 
@@ -284,7 +284,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         void onCollapsed();
         void onExpanded();
         void onHalfExpanded();
-        void onImageCapture(String imageFilename, int rotation);
+        void onImageCapture(final String imageFilename, final int rotation);
     }
 
     private class ViewDragHelperCallback extends ViewDragHelper.Callback {

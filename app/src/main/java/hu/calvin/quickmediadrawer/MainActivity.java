@@ -3,6 +3,7 @@ package hu.calvin.quickmediadrawer;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.support.v4.view.ViewCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -93,20 +94,24 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
     }
 
     @Override
-    public void onImageCapture(String imageFilename, int rotation) {
+    public void onImageCapture(final String imageFilename, final int rotation) {
         quickMediaDrawer.setDrawerState(QuickMediaDrawer.COLLAPSED);
-        try {
-            InputStream in = openFileInput(imageFilename);
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inSampleSize=1;
-            Bitmap thumbnail = BitmapFactory.decodeStream(in, null, options);
-            Matrix matrix = new Matrix();
-            matrix.postRotate(rotation);
-            thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), matrix, true);
-            imageView.setImageBitmap(thumbnail);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        ViewCompat.postOnAnimation(quickMediaDrawer, new Runnable() {
+            public void run() {
+                try {
+                    InputStream in = openFileInput(imageFilename);
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inSampleSize=1;
+                    Bitmap thumbnail = BitmapFactory.decodeStream(in, null, options);
+                    Matrix matrix = new Matrix();
+                    matrix.postRotate(rotation);
+                    thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), matrix, true);
+                    imageView.setImageBitmap(thumbnail);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     @Override

@@ -279,6 +279,6 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
     public interface Callback {
         void displayCameraInUseCopy(boolean inUse);
-        void onImageCapture(String imageFilename, int rotation);
+        void onImageCapture(final String imageFilename, final int rotation);
     }
 }

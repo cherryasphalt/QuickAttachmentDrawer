@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     private SurfaceHolder surfaceHolder;
@@ -252,7 +253,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private static String getOutputMediaFileName(){
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         return "IMG_" + timeStamp + ".jpg";
     }
 
@@ -275,63 +276,5 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     public interface Callback {
         void displayCameraInUseCopy(boolean inUse);
         void onImageCapture(String imageFilename, int rotation);
-    }
-
-    public class FormatImageAsyncTask extends AsyncTask<Object, Void, String> {
-        @Override
-        protected String doInBackground(Object... params) {
-            if (savingImage)
-                return null;
-            byte[] data = (byte[]) params[0];
-            boolean crop = (Boolean) params[1];
-            Rect fullPreviewRect = (Rect) params[2];
-            Rect croppedPreviewRect = (Rect) params[3];
-
-            String pictureFileName = getOutputMediaFileName();
-            savingImage = true;
-            try {
-                FileOutputStream fos = getContext().openFileOutput(pictureFileName, Context.MODE_PRIVATE);
-                if (crop && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
-                    BitmapRegionDecoder decoder = BitmapRegionDecoder.newInstance(data, 0, data.length, false);
-                    int realHeight = decoder.getHeight();
-                    int realWidth = decoder.getWidth();
-                    float widthRatio = (float) realWidth / (float) fullPreviewRect.width();
-                    float heightRatio = (float) realHeight / (float) fullPreviewRect.height();
-
-                    float newWidth = widthRatio * (float) croppedPreviewRect.width();
-                    float newHeight = heightRatio * (float) croppedPreviewRect.height();
-
-                    float centerX = realWidth / 2;
-                    float centerY = realHeight / 2;
-
-                    Rect croppedRect = new Rect();
-                    croppedRect.set((int) (centerX - newWidth / 2),
-                            (int) (centerY - newHeight / 2),
-                            (int) (centerX + newWidth / 2),
-                            (int) (centerY + newHeight / 2));
-
-                    Bitmap croppedBitmap = decoder.decodeRegion(croppedRect, null);
-                    decoder.recycle();
-                    croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-                    croppedBitmap.recycle();
-                } else {
-                    fos.write(data);
-                }
-                fos.close();
-            } catch (FileNotFoundException e) {
-                Log.d(TAG, "File not found: " + e.getMessage());
-            } catch (IOException e) {
-                Log.d(TAG, "Error accessing file: " + e.getMessage());
-            }
-            return pictureFileName;
-        }
-
-        @Override
-        protected void onPostExecute(String resultFilename) {
-            if (resultFilename != null) {
-                callback.onImageCapture(resultFilename, rotation);
-                savingImage = false;
-            }
-        }
     }
 }

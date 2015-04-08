@@ -1,12 +1,8 @@
 package hu.calvin.quickmediadrawer;
 
-import android.content.ContentResolver;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.media.ExifInterface;
-import android.net.Uri;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -15,8 +11,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -56,19 +50,14 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
-        //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
             return true;
         }
@@ -106,7 +95,6 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
     @Override
     public void onImageCapture(String imageFilename, int rotation) {
         quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.COLLAPSED);
-        ContentResolver cr = getContentResolver();
         try {
             InputStream in = openFileInput(imageFilename);
             BitmapFactory.Options options = new BitmapFactory.Options();

@@ -136,7 +136,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             if (initialSetup && child == coverView) {
                 slideRange = getMeasuredHeight();
                 int anchorHeight = slideRange - baseHalfHeight;
-                anchorPoint = computeSlideOffset(anchorHeight);
+                anchorPoint = computeSlideOffsetFromCoverBottom(anchorHeight);
             } else if (initialSetup && child == quickCamera) {
                 cameraSlideRange = getMeasuredHeight();
             }
@@ -287,6 +287,20 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
         @Override
         public void onViewDragStateChanged(int state) {
+            if (dragHelper.getViewDragState() == ViewDragHelper.STATE_IDLE) {
+                switch (drawerState) {
+                    case FULL_EXPANDED:
+                        slideOffset = 1.f;
+                        break;
+                    case HALF_EXPANDED:
+                        slideOffset = anchorPoint;
+                        break;
+                    case COLLAPSED:
+                        slideOffset = 0.f;
+                        break;
+                }
+                requestLayout();
+            }
         }
 
         @Override
@@ -299,7 +313,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             final int expandedTop = computeCoverBottomPosition(1.0f) - coverView.getHeight();
             final int collapsedTop = computeCoverBottomPosition(0.0f) - coverView.getHeight();
             newTop = Math.min(Math.max(newTop, expandedTop), collapsedTop);
-            slideOffset = computeSlideOffset(newTop + coverView.getHeight());
+            slideOffset = computeSlideOffsetFromCoverBottom(newTop + coverView.getHeight());
             requestLayout();
         }
 
@@ -309,9 +323,9 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 float offset = 0.f;
                 float direction = -yvel;
 
-                if (direction > 10) {
+                if (direction > 1) {
                     drawerState = DrawerState.FULL_EXPANDED;
-                } else if (direction < -10) {
+                } else if (direction < -1) {
                     boolean halfExpand = (slideOffset > anchorPoint && !landscape);
                     drawerState = halfExpand ? DrawerState.HALF_EXPANDED : DrawerState.COLLAPSED;
                 } else if (!landscape) {
@@ -350,7 +364,6 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 dragHelper.settleCapturedViewAt(coverView.getLeft(), computeCoverBottomPosition(offset) - coverView.getHeight());
                 dragHelper.captureChildView(quickCamera, 0);
                 dragHelper.settleCapturedViewAt(quickCamera.getLeft(), computeCameraTopPosition(offset));
-                ViewCompat.postInvalidateOnAnimation(QuickMediaDrawer.this);
             }
         }
 
@@ -459,13 +472,16 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         }
     }
 
-    private float computeSlideOffset(int topPosition) {
+    private float computeSlideOffsetFromCoverBottom(int topPosition) {
         final int topBoundCollapsed = computeCoverBottomPosition(0);
         return (float) (topBoundCollapsed - topPosition) / slideRange;
     }
 
     public void onPause() {
-        setDrawerState(DrawerState.COLLAPSED);
+        slideTo(0f);
+        quickCamera.stopPreview();
+        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+        if (listener != null) listener.onCollapsed();
     }
 
     public void onResume() {

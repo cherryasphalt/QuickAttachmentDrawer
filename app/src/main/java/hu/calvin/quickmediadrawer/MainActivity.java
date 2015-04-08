@@ -30,19 +30,19 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
         findViewById(R.id.quick_media_expand).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.HALF_EXPANDED);
+                quickMediaDrawer.setDrawerState(QuickMediaDrawer.HALF_EXPANDED);
             }
         });
         findViewById(R.id.quick_media_collapse).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.COLLAPSED);
+                quickMediaDrawer.setDrawerState(QuickMediaDrawer.COLLAPSED);
             }
         });
         findViewById(R.id.quick_media_full_expand).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.FULL_EXPANDED);
+                quickMediaDrawer.setDrawerState(QuickMediaDrawer.FULL_EXPANDED);
             }
         });
         actionBar = getSupportActionBar();
@@ -94,7 +94,7 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
 
     @Override
     public void onImageCapture(String imageFilename, int rotation) {
-        quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.COLLAPSED);
+        quickMediaDrawer.setDrawerState(QuickMediaDrawer.COLLAPSED);
         try {
             InputStream in = openFileInput(imageFilename);
             BitmapFactory.Options options = new BitmapFactory.Options();
@@ -111,8 +111,8 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
 
     @Override
     public void onBackPressed() {
-        if (quickMediaDrawer.getDrawerState() != QuickMediaDrawer.DrawerState.COLLAPSED)
-            quickMediaDrawer.setDrawerState(QuickMediaDrawer.DrawerState.COLLAPSED);
+        if (quickMediaDrawer.getDrawerState() != QuickMediaDrawer.COLLAPSED)
+            quickMediaDrawer.setDrawerState(QuickMediaDrawer.COLLAPSED);
         else
             super.onBackPressed();
     }

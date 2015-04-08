@@ -5,6 +5,7 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.os.Build;
+import android.support.annotation.IntDef;
 import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.ViewDragHelper;
@@ -17,12 +18,16 @@ import android.view.WindowManager;
 import android.widget.ImageButton;
 
 public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback {
-    //TODO: Make intdef to avoid dex method limit
-    public enum DrawerState {COLLAPSED, HALF_EXPANDED, FULL_EXPANDED};
+    @IntDef({COLLAPSED, HALF_EXPANDED, FULL_EXPANDED})
+    public @interface DrawerState {}
+    public static final int COLLAPSED = 0;
+    public static final int HALF_EXPANDED = 1;
+    public static final int FULL_EXPANDED = 2;
+
     private final ViewDragHelper dragHelper;
     private final QuickCamera quickCamera;
     private final View controls;
-    private DrawerState drawerState;
+    private @DrawerState int drawerState;
     private View coverView;
     private float slideOffset, initialMotionX, initialMotionY, anchorPoint;
     private boolean initialSetup, startCamera, stopCamera, landscape, belowICS;
@@ -41,7 +46,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
     public QuickMediaDrawer(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
-        drawerState = DrawerState.COLLAPSED;
+        drawerState = COLLAPSED;
         dragHelper = ViewDragHelper.create(this, 1f, new ViewDragHelperCallback());
         quickCamera = new QuickCamera(context, this);
         controls = inflate(getContext(), R.layout.quick_camera_controls, null);
@@ -66,7 +71,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 fullPreviewRect.set(0, 0, quickCamera.getMeasuredWidth(), quickCamera.getMeasuredHeight());
                 Rect croppedPreviewRect = new Rect();
                 croppedPreviewRect.set(0, 0, quickCamera.getMeasuredWidth(), baseHalfHeight);
-                quickCamera.takePicture(drawerState != DrawerState.FULL_EXPANDED, fullPreviewRect, croppedPreviewRect);
+                quickCamera.takePicture(drawerState != FULL_EXPANDED, fullPreviewRect, croppedPreviewRect);
             }
         });
 
@@ -86,10 +91,10 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         fullScreenButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (drawerState == DrawerState.HALF_EXPANDED || drawerState == DrawerState.COLLAPSED)
-                    setDrawerState(DrawerState.FULL_EXPANDED);
+                if (drawerState == HALF_EXPANDED || drawerState == COLLAPSED)
+                    setDrawerState(FULL_EXPANDED);
                 else
-                    setDrawerState((landscape || belowICS) ? DrawerState.COLLAPSED : DrawerState.HALF_EXPANDED);
+                    setDrawerState((landscape || belowICS) ? COLLAPSED : HALF_EXPANDED);
             }
         });
     }
@@ -239,11 +244,11 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         }
     }
 
-    public DrawerState getDrawerState() {
+    public @DrawerState int getDrawerState() {
         return drawerState;
     }
 
-    public void setDrawerState(DrawerState drawerState) {
+    public void setDrawerState(@DrawerState int drawerState) {
         this.drawerState = drawerState;
         switch (drawerState) {
             case COLLAPSED:
@@ -328,22 +333,22 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 float direction = -yvel;
 
                 if (direction > 1) {
-                    drawerState = DrawerState.FULL_EXPANDED;
+                    drawerState = FULL_EXPANDED;
                 } else if (direction < -1) {
                     boolean halfExpand = (slideOffset > anchorPoint && !landscape);
-                    drawerState = halfExpand ? DrawerState.HALF_EXPANDED : DrawerState.COLLAPSED;
+                    drawerState = halfExpand ? HALF_EXPANDED : COLLAPSED;
                 } else if (!landscape) {
                     if (anchorPoint != 1 && slideOffset >= (1.f + anchorPoint) / 2) {
-                        drawerState = DrawerState.FULL_EXPANDED;
+                        drawerState = FULL_EXPANDED;
                     } else if (anchorPoint == 1 && slideOffset >= 0.5f) {
-                        drawerState = DrawerState.FULL_EXPANDED;
+                        drawerState = FULL_EXPANDED;
                     } else if (anchorPoint != 1 && slideOffset >= anchorPoint) {
-                        drawerState = DrawerState.HALF_EXPANDED;
+                        drawerState = HALF_EXPANDED;
                     } else if (anchorPoint != 1 && slideOffset >= anchorPoint / 2) {
-                        drawerState = DrawerState.HALF_EXPANDED;
+                        drawerState = HALF_EXPANDED;
                     }
                 } else {
-                    drawerState = DrawerState.COLLAPSED;
+                    drawerState = COLLAPSED;
                 }
 
                 switch (drawerState) {
@@ -368,6 +373,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 dragHelper.settleCapturedViewAt(coverView.getLeft(), computeCoverBottomPosition(offset) - coverView.getHeight());
                 dragHelper.captureChildView(quickCamera, 0);
                 dragHelper.settleCapturedViewAt(quickCamera.getLeft(), computeCameraTopPosition(offset));
+                ViewCompat.postInvalidateOnAnimation(QuickMediaDrawer.this);
             }
         }
 
@@ -489,7 +495,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     }
 
     public void onResume() {
-        if (drawerState == DrawerState.HALF_EXPANDED || drawerState == DrawerState.FULL_EXPANDED)
+        if (drawerState == HALF_EXPANDED || drawerState == FULL_EXPANDED)
             startCamera = true;
     }
 

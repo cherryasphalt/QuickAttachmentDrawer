@@ -14,6 +14,7 @@ import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
@@ -29,12 +30,11 @@ import java.util.Locale;
 public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     private SurfaceHolder surfaceHolder;
     private Camera camera;
-    private boolean started;
+    private boolean started, savingImage;
     private final String TAG = "QuickCamera";
     private int cameraId = Camera.CameraInfo.CAMERA_FACING_BACK;
     private Callback callback;
     private Camera.Parameters cameraParameters;
-    private boolean savingImage;
     private int rotation;
 
     public QuickCamera(Context context, Callback callback) {
@@ -60,7 +60,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
             stopPreviewAndReleaseCamera();
         } catch (RuntimeException e) {
-            e.printStackTrace();
+            if (this.callback != null) this.callback.displayCameraUnavailableError();
         }
     }
 
@@ -134,7 +134,6 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
     }
 
-    //TODO: crop photo based on viewport and store in ram, not disk
     public void takePicture(final boolean crop, final Rect fullPreviewRect, final Rect croppedPreviewRect) {
         if (camera != null) {
             //use preview frame for faster capture/less memory usage
@@ -252,7 +251,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             camera.startPreview();
             started = true;
         } catch (RuntimeException | IOException e) {
-            if (callback != null) callback.displayCameraInUseCopy(true);
+            if (callback != null) callback.displayCameraUnavailableError();
         }
     }
 
@@ -278,7 +277,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public interface Callback {
-        void displayCameraInUseCopy(boolean inUse);
+        void displayCameraUnavailableError();
         void onImageCapture(final String imageFilename, final int rotation);
     }
 }

@@ -16,6 +16,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ImageButton;
+import android.widget.Toast;
 
 public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback {
     @IntDef({COLLAPSED, HALF_EXPANDED, FULL_EXPANDED})
@@ -67,10 +68,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         controls.findViewById(R.id.shutter_button).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                Rect fullPreviewRect = new Rect();
-                fullPreviewRect.set(0, 0, quickCamera.getMeasuredWidth(), quickCamera.getMeasuredHeight());
-                Rect croppedPreviewRect = new Rect();
-                croppedPreviewRect.set(0, 0, quickCamera.getMeasuredWidth(), baseHalfHeight);
+                Rect fullPreviewRect = new Rect(0, 0, quickCamera.getMeasuredWidth(), quickCamera.getMeasuredHeight());
+                Rect croppedPreviewRect = new Rect(0, 0, quickCamera.getMeasuredWidth(), baseHalfHeight);
                 quickCamera.takePicture(drawerState != FULL_EXPANDED, fullPreviewRect, croppedPreviewRect);
             }
         });
@@ -100,8 +99,8 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     }
 
     @Override
-    public void displayCameraInUseCopy(boolean inUse) {
-
+    public void displayCameraUnavailableError() {
+        Toast.makeText(getContext(), R.string.quick_media_drawer_camera_unavailable, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -418,7 +417,6 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 final float ady = Math.abs(y - initialMotionY);
                 final int dragSlop = dragHelper.getTouchSlop();
 
-                // Handle any horizontal scrolling on the drag view.
                 if (adx > dragSlop && ady < dragSlop) {
                     return super.onInterceptTouchEvent(event);
                 }
@@ -490,6 +488,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         slideTo(0f);
         quickCamera.stopPreviewAndReleaseCamera();
         fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+        drawerState = COLLAPSED;
         if (listener != null) listener.onCollapsed();
     }
 

@@ -32,7 +32,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private float slideOffset, initialMotionX, initialMotionY, anchorPoint;
     private boolean initialSetup, startCamera, stopCamera, landscape, belowICS;
     private int slideRange, cameraSlideRange, baseHalfHeight;
-    private Rect mTmpRect = new Rect();
+    private Rect drawChildrenRect = new Rect();
     private ImageButton fullScreenButton;
     private QuickMediaDrawerListener listener;
 
@@ -215,15 +215,14 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         boolean result;
         final int save = canvas.save(Canvas.CLIP_SAVE_FLAG);
 
-        canvas.getClipBounds(mTmpRect);
+        canvas.getClipBounds(drawChildrenRect);
         if (child == coverView)
-            mTmpRect.bottom = Math.min(mTmpRect.bottom, child.getBottom());
+            drawChildrenRect.bottom = Math.min(drawChildrenRect.bottom, child.getBottom());
         else
-            mTmpRect.top = Math.max(mTmpRect.top, coverView.getBottom());
-        canvas.clipRect(mTmpRect);
+            drawChildrenRect.top = Math.max(drawChildrenRect.top, coverView.getBottom());
+        canvas.clipRect(drawChildrenRect);
         result = super.drawChild(canvas, child, drawingTime);
         canvas.restoreToCount(save);
-
         return result;
     }
 
@@ -268,7 +267,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             case FULL_EXPANDED:
                 slideTo(1.f);
                 stopCamera = false;
-                fullScreenButton.setImageResource(landscape ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
+                fullScreenButton.setImageResource(landscape || belowICS ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
                 if (!quickCamera.isStarted())
                     startCamera = true;
                 if (listener != null) listener.onExpanded();

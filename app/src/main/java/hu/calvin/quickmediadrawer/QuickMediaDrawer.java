@@ -25,7 +25,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private DrawerState drawerState;
     private View coverView;
     private float slideOffset, initialMotionX, initialMotionY, anchorPoint;
-    private boolean initialSetup, stopCamera, landscape, belowICS;
+    private boolean initialSetup, startCamera, stopCamera, landscape, belowICS;
     private int slideRange, cameraSlideRange, baseHalfHeight;
     private Rect mTmpRect = new Rect();
     private ImageButton fullScreenButton;
@@ -53,6 +53,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         addView(quickCamera);
         addView(controls);
         initialSetup = true;
+        startCamera = false;
         stopCamera = false;
         baseHalfHeight = getResources().getDimensionPixelSize(R.dimen.quick_media_drawer_default_height);
     }
@@ -230,8 +231,11 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
             }
             ViewCompat.postInvalidateOnAnimation(this);
         } else if (stopCamera){
-            quickCamera.stopPreview();
+            quickCamera.stopPreviewAndReleaseCamera();
             stopCamera = false;
+        } else if (startCamera) {
+            quickCamera.startPreview();
+            startCamera = false;
         }
     }
 
@@ -253,7 +257,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 stopCamera = false;
                 fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
                 if (!quickCamera.isStarted())
-                    quickCamera.startPreview();
+                    startCamera = true;
                 if (listener != null) listener.onHalfExpanded();
                 break;
             case FULL_EXPANDED:
@@ -261,7 +265,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 stopCamera = false;
                 fullScreenButton.setImageResource(landscape ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
                 if (!quickCamera.isStarted())
-                    quickCamera.startPreview();
+                    startCamera = true;
                 if (listener != null) listener.onExpanded();
                 break;
         }
@@ -479,14 +483,14 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
     public void onPause() {
         slideTo(0f);
-        quickCamera.stopPreview();
+        quickCamera.stopPreviewAndReleaseCamera();
         fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
         if (listener != null) listener.onCollapsed();
     }
 
     public void onResume() {
         if (drawerState == DrawerState.HALF_EXPANDED || drawerState == DrawerState.FULL_EXPANDED)
-            quickCamera.startPreview();
+            startCamera = true;
     }
 
     @Override

@@ -2,15 +2,13 @@ package hu.calvin.quickmediadrawer;
 
 import android.content.Context;
 import android.content.res.Configuration;
-import android.graphics.Bitmap;
-import android.graphics.BitmapRegionDecoder;
 import android.graphics.Canvas;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.Camera;
-import android.os.AsyncTask;
 import android.os.Build;
+import android.support.v4.view.ViewCompat;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface;
@@ -60,7 +58,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             surfaceHolder = getHolder();
             surfaceHolder.addCallback(this);
             surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-            stopPreview();
+            stopPreviewAndReleaseCamera();
         } catch (RuntimeException e) {
             e.printStackTrace();
         }
@@ -111,19 +109,18 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-    }
+    public void surfaceCreated(SurfaceHolder holder) {}
 
     @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
-    }
+    public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {}
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        stopPreview();
+        stopPreviewAndReleaseCamera();
     }
 
-    public void stopPreview() {
+    public void stopPreviewAndReleaseCamera() {
+        ViewCompat.setAlpha(QuickCamera.this, 0.f);
         if (camera != null) {
             camera.stopPreview();
             camera.release();
@@ -244,6 +241,13 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                 initializeCamera();
                 camera.setParameters(cameraParameters);
                 camera.setPreviewDisplay(surfaceHolder);
+                ViewCompat.setAlpha(this, 0.f);
+                camera.setOneShotPreviewCallback(new Camera.PreviewCallback() {
+                    @Override
+                    public void onPreviewFrame(byte[] data, Camera camera) {
+                        ViewCompat.setAlpha(QuickCamera.this, 1.f);
+                    }
+                });
             }
             camera.startPreview();
             started = true;
@@ -264,7 +268,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     public void swapCamera() {
         if (isMultipleCameras()) {
             cameraId = (cameraId == Camera.CameraInfo.CAMERA_FACING_BACK) ? Camera.CameraInfo.CAMERA_FACING_FRONT : Camera.CameraInfo.CAMERA_FACING_BACK;
-            stopPreview();
+            stopPreviewAndReleaseCamera();
             startPreview();
         }
     }

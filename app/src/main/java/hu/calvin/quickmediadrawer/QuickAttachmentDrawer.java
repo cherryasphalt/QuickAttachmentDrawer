@@ -18,7 +18,7 @@ import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
-public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback {
+public class QuickAttachmentDrawer extends ViewGroup implements QuickCamera.Callback {
     @IntDef({COLLAPSED, HALF_EXPANDED, FULL_EXPANDED})
     public @interface DrawerState {}
     public static final int COLLAPSED = 0;
@@ -35,17 +35,17 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
     private int slideRange, cameraSlideRange, baseHalfHeight;
     private Rect drawChildrenRect = new Rect();
     private ImageButton fullScreenButton;
-    private QuickMediaDrawerListener listener;
+    private QuickAttachmentDrawerListener listener;
 
-    public QuickMediaDrawer(Context context) {
+    public QuickAttachmentDrawer(Context context) {
         this(context, null);
     }
 
-    public QuickMediaDrawer(Context context, AttributeSet attrs) {
+    public QuickAttachmentDrawer(Context context, AttributeSet attrs) {
         this(context, attrs, 0);
     }
 
-    public QuickMediaDrawer(Context context, AttributeSet attrs, int defStyle) {
+    public QuickAttachmentDrawer(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
         drawerState = COLLAPSED;
         dragHelper = ViewDragHelper.create(this, 1f, new ViewDragHelperCallback());
@@ -100,7 +100,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
     @Override
     public void displayCameraUnavailableError() {
-        Toast.makeText(getContext(), R.string.quick_media_drawer_camera_unavailable, Toast.LENGTH_SHORT).show();
+        Toast.makeText(getContext(), R.string.quick_camera_unavailable, Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -164,14 +164,14 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
 
         final int childCount = getChildCount();
         if (childCount != 3)
-            throw new IllegalStateException("QuickMediaDrawer layouts may only have 1 child.");
+            throw new IllegalStateException("QuickAttachmentDrawer layouts may only have 1 child.");
 
         coverView = getChildAt(2);
         int layoutHeight = heightSize - getPaddingTop() - getPaddingBottom();
 
         for (int i = 0; i < childCount; i++) {
             final View child = getChildAt(i);
-            final LayoutParams lp = (QuickMediaDrawer.LayoutParams) child.getLayoutParams();
+            final LayoutParams lp = (QuickAttachmentDrawer.LayoutParams) child.getLayoutParams();
 
             if (child.getVisibility() == GONE && i == 0) {
                 continue;
@@ -274,11 +274,11 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
         }
     }
 
-    public void setQuickMediaDrawerListener(QuickMediaDrawerListener listener) {
+    public void setQuickAttachmentDrawerListener(QuickAttachmentDrawerListener listener) {
         this.listener = listener;
     }
 
-    public interface QuickMediaDrawerListener {
+    public interface QuickAttachmentDrawerListener {
         void onCollapsed();
         void onExpanded();
         void onHalfExpanded();
@@ -371,7 +371,7 @@ public class QuickMediaDrawer extends ViewGroup implements QuickCamera.Callback 
                 dragHelper.settleCapturedViewAt(coverView.getLeft(), computeCoverBottomPosition(offset) - coverView.getHeight());
                 dragHelper.captureChildView(quickCamera, 0);
                 dragHelper.settleCapturedViewAt(quickCamera.getLeft(), computeCameraTopPosition(offset));
-                ViewCompat.postInvalidateOnAnimation(QuickMediaDrawer.this);
+                ViewCompat.postInvalidateOnAnimation(QuickAttachmentDrawer.this);
             }
         }
 

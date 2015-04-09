@@ -1,9 +1,10 @@
-<hu.calvin.quickmediadrawer.QuickMediaDrawer
+<hu.calvin.quickmediadrawer.QuickAttachmentDrawer
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/quick_media_drawer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@android:color/black"
     tools:context=".MainActivity">
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,7 +14,7 @@
         android:background="#16efd7">
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="300dp">
+            android:layout_height="50dp">
             <hu.calvin.quickmediadrawer.ResizeableImageView
                 android:id="@+id/sample_imageview"
                 android:layout_width="match_parent"
@@ -48,4 +49,4 @@
                 android:text="Collapse"/>
         </LinearLayout>
     </LinearLayout>
-</hu.calvin.quickmediadrawer.QuickMediaDrawer>
+</hu.calvin.quickmediadrawer.QuickAttachmentDrawer>

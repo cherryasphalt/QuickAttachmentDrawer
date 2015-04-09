@@ -14,7 +14,6 @@ import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
@@ -60,7 +59,7 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
             stopPreviewAndReleaseCamera();
         } catch (RuntimeException e) {
-            if (this.callback != null) this.callback.displayCameraUnavailableError();
+            e.printStackTrace();
         }
     }
 
@@ -220,10 +219,10 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                 rotation = (info.orientation + degrees) % 360;
             }
             cameraParameters.setRotation(rotation);
-            if (info.orientation == 0 || info.orientation == 180)
-                previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
-            else
+            if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT)
                 previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), height, width);
+            else
+                previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
             if (previewSize != null)
                 cameraParameters.setPreviewSize(previewSize.width, previewSize.height);
         }

@@ -16,8 +16,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 
-public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.QuickMediaDrawerListener {
-    QuickMediaDrawer quickMediaDrawer;
+public class MainActivity extends ActionBarActivity implements QuickAttachmentDrawer.QuickAttachmentDrawerListener {
+    QuickAttachmentDrawer quickAttachmentDrawer;
     ImageView imageView;
     ActionBar actionBar;
 
@@ -26,24 +26,24 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         imageView = (ImageView) findViewById(R.id.sample_imageview);
-        quickMediaDrawer = (QuickMediaDrawer) findViewById(R.id.quick_media_drawer);
-        quickMediaDrawer.setQuickMediaDrawerListener(this);
+        quickAttachmentDrawer = (QuickAttachmentDrawer) findViewById(R.id.quick_media_drawer);
+        quickAttachmentDrawer.setQuickAttachmentDrawerListener(this);
         findViewById(R.id.quick_media_expand).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickMediaDrawer.setDrawerState(QuickMediaDrawer.HALF_EXPANDED);
+                quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.HALF_EXPANDED);
             }
         });
         findViewById(R.id.quick_media_collapse).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickMediaDrawer.setDrawerState(QuickMediaDrawer.COLLAPSED);
+                quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.COLLAPSED);
             }
         });
         findViewById(R.id.quick_media_full_expand).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickMediaDrawer.setDrawerState(QuickMediaDrawer.FULL_EXPANDED);
+                quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.FULL_EXPANDED);
             }
         });
         actionBar = getSupportActionBar();
@@ -69,13 +69,13 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
     @Override
     protected void onPause() {
         super.onPause();
-        quickMediaDrawer.onPause();
+        quickAttachmentDrawer.onPause();
     }
 
     @Override
     protected void onResume() {
         super.onPause();
-        quickMediaDrawer.onResume();
+        quickAttachmentDrawer.onResume();
     }
 
     @Override
@@ -95,8 +95,8 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
 
     @Override
     public void onImageCapture(final String imageFilename, final int rotation) {
-        quickMediaDrawer.setDrawerState(QuickMediaDrawer.COLLAPSED);
-        ViewCompat.postOnAnimation(quickMediaDrawer, new Runnable() {
+        quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.COLLAPSED);
+        ViewCompat.postOnAnimation(quickAttachmentDrawer, new Runnable() {
             public void run() {
                 try {
                     InputStream in = openFileInput(imageFilename);
@@ -116,8 +116,8 @@ public class MainActivity extends ActionBarActivity implements QuickMediaDrawer.
 
     @Override
     public void onBackPressed() {
-        if (quickMediaDrawer.getDrawerState() != QuickMediaDrawer.COLLAPSED)
-            quickMediaDrawer.setDrawerState(QuickMediaDrawer.COLLAPSED);
+        if (quickAttachmentDrawer.getDrawerState() != QuickAttachmentDrawer.COLLAPSED)
+            quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.COLLAPSED);
         else
             super.onBackPressed();
     }

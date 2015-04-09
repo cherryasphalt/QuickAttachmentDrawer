@@ -68,13 +68,13 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
 
     @Override
     protected void onPause() {
-        super.onPause();
         quickAttachmentDrawer.onPause();
+        super.onPause();
     }
 
     @Override
     protected void onResume() {
-        super.onPause();
+        super.onResume();
         quickAttachmentDrawer.onResume();
     }
 

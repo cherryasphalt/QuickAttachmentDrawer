@@ -1,7 +1,6 @@
 package hu.calvin.quickmediadrawer;
 
 import android.content.Context;
-import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.os.Build;
@@ -455,12 +454,12 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickCamera.Call
     private int computeCameraTopPosition(float slideOffset) {
         float clampedOffset = slideOffset - anchorPoint;
         clampedOffset = clampedOffset < 0.f ? 0.f : (clampedOffset / (1.f - anchorPoint));
-        int slidePixelOffset = (int) (slideOffset * cameraSlideRange +
-                //center the half expanded camera
-                (getMeasuredHeight() + baseHalfHeight) / 2 * (1.f - clampedOffset) / 2);
+        float slidePixelOffset = slideOffset * cameraSlideRange +
+        //center the half expanded camera
+            (quickCamera.getMeasuredHeight() - baseHalfHeight)/ 2 * (1.f - clampedOffset);
         //center the camera vertically when it's smaller than the whole view
-        int marginPixelOffset = (int) ((getMeasuredHeight() - quickCamera.getMeasuredHeight()) / 2 * clampedOffset);
-        return getMeasuredHeight() - slidePixelOffset + marginPixelOffset - getPaddingBottom();
+        float marginPixelOffset = (getMeasuredHeight() - quickCamera.getMeasuredHeight()) / 2 * clampedOffset;
+        return (int) (getMeasuredHeight() - slidePixelOffset + marginPixelOffset);
     }
 
     private int computeCoverBottomPosition(float slideOffset) {
@@ -495,61 +494,5 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickCamera.Call
     public void onResume() {
         if (drawerState == HALF_EXPANDED || drawerState == FULL_EXPANDED)
             startCamera = true;
-    }
-
-    @Override
-    protected ViewGroup.LayoutParams generateDefaultLayoutParams() {
-        return new LayoutParams();
-    }
-
-    @Override
-    protected ViewGroup.LayoutParams generateLayoutParams(ViewGroup.LayoutParams p) {
-        return p instanceof MarginLayoutParams
-                ? new LayoutParams((MarginLayoutParams) p)
-                : new LayoutParams(p);
-    }
-
-    @Override
-    protected boolean checkLayoutParams(ViewGroup.LayoutParams p) {
-        return p instanceof LayoutParams && super.checkLayoutParams(p);
-    }
-
-    @Override
-    public ViewGroup.LayoutParams generateLayoutParams(AttributeSet attrs) {
-        return new LayoutParams(getContext(), attrs);
-    }
-
-    public static class LayoutParams extends ViewGroup.MarginLayoutParams {
-        private static final int[] ATTRS = new int[] {
-                android.R.attr.layout_weight
-        };
-
-        public LayoutParams() {
-            super(MATCH_PARENT, MATCH_PARENT);
-        }
-
-        public LayoutParams(int width, int height) {
-            super(width, height);
-        }
-
-        public LayoutParams(android.view.ViewGroup.LayoutParams source) {
-            super(source);
-        }
-
-        public LayoutParams(MarginLayoutParams source) {
-            super(source);
-        }
-
-        public LayoutParams(LayoutParams source) {
-            super(source);
-        }
-
-        public LayoutParams(Context c, AttributeSet attrs) {
-            super(c, attrs);
-
-            final TypedArray a = c.obtainStyledAttributes(attrs, ATTRS);
-            a.recycle();
-        }
-
     }
 }

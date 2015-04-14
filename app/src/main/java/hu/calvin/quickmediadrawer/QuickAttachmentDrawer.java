@@ -8,6 +8,7 @@ import android.hardware.Camera;
 import android.net.Uri;
 import android.os.Build;
 import android.support.annotation.IntDef;
+import android.support.annotation.NonNull;
 import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.ViewDragHelper;
@@ -217,7 +218,7 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickCamera.Call
     }
 
     @Override
-    protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
+    protected boolean drawChild(@NonNull Canvas canvas, @NonNull View child, long drawingTime) {
         boolean result;
         final int save = canvas.save(Canvas.CLIP_SAVE_FLAG);
 
@@ -439,7 +440,7 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickCamera.Call
 
 
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
+    public boolean onTouchEvent(@NonNull MotionEvent event) {
         if (dragHelper != null) {
             dragHelper.processTouchEvent(event);
             return true;
@@ -476,7 +477,7 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickCamera.Call
 
     private void slideTo(float slideOffset) {
         this.slideOffset = slideOffset;
-        if (!belowICS) {
+        if (dragHelper != null && !belowICS) {
             dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), computeCoverBottomPosition(slideOffset) - coverView.getHeight());
             dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), computeCameraTopPosition(slideOffset));
             ViewCompat.postInvalidateOnAnimation(this);

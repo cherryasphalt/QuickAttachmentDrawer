@@ -14,13 +14,13 @@
         android:background="#16efd7">
         <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="50dp">
+            android:layout_height="0dp"
+            android:layout_weight="1">
             <hu.calvin.quickmediadrawer.ResizeableImageView
                 android:id="@+id/sample_imageview"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="20dp"
-                android:minHeight="100dp"
                 android:background="#dddddd"/>
         </ScrollView>
         <View

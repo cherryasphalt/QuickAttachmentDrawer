@@ -2,12 +2,14 @@ package hu.calvin.quickmediadrawer;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.Camera;
-import android.os.Build;
+import android.net.Uri;
 import android.support.v4.view.ViewCompat;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -18,6 +20,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -43,7 +46,6 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         savingImage = false;
         try {
             ViewGroup.LayoutParams layoutParams;
-            camera = getCameraInstance(cameraId);
             initializeCamera();
             if (cameraParameters != null) {
                 if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT)
@@ -108,7 +110,9 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
-    public void surfaceCreated(SurfaceHolder holder) {}
+    public void surfaceCreated(SurfaceHolder holder) {
+        startPreview();
+    }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {}
@@ -140,22 +144,27 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                 @Override
                 public void onPreviewFrame(byte[] data, Camera camera) {
                     if (savingImage) return;
-                    String pictureFileName = getOutputMediaFileName();
+                    File tempDirectory = getContext().getDir("tmp", Context.MODE_PRIVATE);
                     savingImage = true;
                     try {
-                        FileOutputStream fileOutputStream = getContext().openFileOutput(pictureFileName, Context.MODE_PRIVATE);
-                        int previewWidth = cameraParameters.getPreviewSize().width;
-                        int previewHeight = cameraParameters.getPreviewSize().height;
+                        File tempFile = File.createTempFile("image", ".jpg", tempDirectory);
+                        FileOutputStream fileOutputStream = new FileOutputStream(tempFile);
+                        int previewWidth = getWidth();
+                        int previewHeight = getHeight();
                         YuvImage previewImage = new YuvImage(data, ImageFormat.NV21, previewWidth, previewHeight, null);
+                        int realHeight = previewImage.getHeight();
+                        int realWidth = previewImage.getWidth();
+                        float widthRatio = (float) realWidth / (float) fullPreviewRect.width();
+                        float heightRatio = (float) realHeight / (float) fullPreviewRect.height();
 
-                        if (crop && android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD_MR1) {
+                        if (crop) {
                             float newWidth, newHeight;
                             if (rotation == 90 || rotation == 270) {
-                                newWidth = croppedPreviewRect.height();
-                                newHeight = croppedPreviewRect.width();
+                                newWidth = heightRatio * croppedPreviewRect.height();
+                                newHeight = widthRatio * croppedPreviewRect.width();
                             } else {
-                                newWidth = croppedPreviewRect.width();
-                                newHeight = croppedPreviewRect.height();
+                                newWidth = widthRatio * croppedPreviewRect.width();
+                                newHeight = heightRatio * croppedPreviewRect.height();
                             }
                             float centerX = previewWidth / 2;
                             float centerY = previewHeight / 2;
@@ -163,19 +172,31 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                                     (int) (centerY - newHeight / 2),
                                     (int) (centerX + newWidth / 2),
                                     (int) (centerY + newHeight / 2));
+                            Log.d("Quick Camera", "Full Rect: (" + previewWidth + ", " + previewHeight + "), Cropped Preview Rect: " + croppedPreviewRect);
                             previewImage.compressToJpeg(croppedPreviewRect, 100, fileOutputStream);
                         } else {
+                            float newWidth, newHeight;
                             if (rotation == 90 || rotation == 270)
-                                fullPreviewRect.set(0, 0, fullPreviewRect.height(), fullPreviewRect.width());
+                                fullPreviewRect.set(0, 0, (int) (heightRatio * fullPreviewRect.height()), (int) (widthRatio * fullPreviewRect.width()));
+                            else
+                                fullPreviewRect.set(0, 0, (int) (widthRatio * fullPreviewRect.width()), (int) (heightRatio * fullPreviewRect.height()));
+                            Log.d("Quick Camera", "Full Rect: (" + previewWidth + ", " + previewHeight + "), Full Preview Rect: " + fullPreviewRect);
                             previewImage.compressToJpeg(fullPreviewRect, 100, fileOutputStream);
                         }
+                        /*if (rotation != 0) {
+                            //byte[] bytes = fileOutputStream.toByteArray();
+                            //Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                            Bitmap bitmap = BitmapFactory.decodeFile(tempFile.getPath());
+                            //bitmap = BitmapUtil.rotateBitmap(bitmap, rotation);
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 50, fileOutputStream);
+                        }*/
                         fileOutputStream.close();
+                        callback.onImageCapture(Uri.fromFile(tempFile), rotation);
                     } catch (FileNotFoundException e) {
                         Log.d(TAG, "File not found: " + e.getMessage());
                     } catch (IOException e) {
                         Log.d(TAG, "Error accessing file: " + e.getMessage());
                     }
-                    callback.onImageCapture(pictureFileName, rotation);
                     savingImage = false;
                 }
             });
@@ -186,77 +207,88 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
         DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
         int width = displayMetrics.widthPixels;
         int height = displayMetrics.heightPixels;
-        if (camera != null) {
-            Camera.CameraInfo info = new Camera.CameraInfo();
-            android.hardware.Camera.getCameraInfo(cameraId, info);
-            cameraParameters = camera.getParameters();
+        if (camera == null)
+            camera = getCameraInstance(cameraId);
+        Camera.CameraInfo info = new Camera.CameraInfo();
+        android.hardware.Camera.getCameraInfo(cameraId, info);
+        cameraParameters = camera.getParameters();
 
-            List<String> focusModes = cameraParameters.getSupportedFocusModes();
-            if (focusModes.contains(Camera.Parameters.FOCUS_MODE_AUTO))
-               cameraParameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+        List<String> focusModes = cameraParameters.getSupportedFocusModes();
+        if (focusModes.contains(Camera.Parameters.FOCUS_MODE_AUTO))
+            cameraParameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
 
-            Camera.Size previewSize;
-            int windowRotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
-            int degrees = 0;
-            switch (windowRotation) {
-                case Surface.ROTATION_0: degrees = 0; break;
-                case Surface.ROTATION_90: degrees = 90; break;
-                case Surface.ROTATION_180: degrees = 180; break;
-                case Surface.ROTATION_270: degrees = 270; break;
-            }
-            int derivedOrientation;
-            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                derivedOrientation = (info.orientation + degrees) % 360;
-                derivedOrientation = (360 - derivedOrientation) % 360;  // compensate the mirror
-            } else {
-                derivedOrientation = (info.orientation - degrees + 360) % 360;
-            }
-            camera.setDisplayOrientation(derivedOrientation);
-
-            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                rotation = (info.orientation - degrees + 360) % 360;
-            } else {
-                rotation = (info.orientation + degrees) % 360;
-            }
-            cameraParameters.setRotation(rotation);
-            if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT)
-                previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), height, width);
-            else
-                previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
-            if (previewSize != null)
-                cameraParameters.setPreviewSize(previewSize.width, previewSize.height);
+        Camera.Size previewSize;
+        int windowRotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
+        int degrees = 0;
+        switch (windowRotation) {
+            case Surface.ROTATION_0: degrees = 0; break;
+            case Surface.ROTATION_90: degrees = 90; break;
+            case Surface.ROTATION_180: degrees = 180; break;
+            case Surface.ROTATION_270: degrees = 270; break;
         }
+
+        /*if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            rotation = (info.orientation + degrees) % 360;
+            rotation = (360 - rotation) % 360;  // compensate the mirror
+        } else {
+            rotation = (info.orientation - degrees + 360) % 360;
+        }
+
+        camera.setDisplayOrientation(rotation);
+        //cameraParameters.setRotation(rotation);
+
+        cameraParameters.setRotation(rotation);*/
+
+        int derivedOrientation;
+        if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            derivedOrientation = (info.orientation + degrees) % 360;
+            derivedOrientation = (360 - derivedOrientation) % 360;  // compensate the mirror
+        } else {
+            derivedOrientation = (info.orientation - degrees + 360) % 360;
+        }
+        camera.setDisplayOrientation(derivedOrientation);
+
+        if (derivedOrientation == 0 || derivedOrientation == 180)
+            previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), width, height);
+        else
+            previewSize = getOptimalPreviewSize(cameraParameters.getSupportedPreviewSizes(), height, width);
+        if (previewSize != null)
+            cameraParameters.setPreviewSize(previewSize.width, previewSize.height);
+
+        if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            rotation = (info.orientation - degrees + 360) % 360;
+        } else {
+            rotation = (info.orientation + degrees) % 360;
+            rotation = (360 - rotation) % 360;  // compensate the mirror
+        }
+        cameraParameters.setRotation(rotation);
+
+        //camera.setDisplayOrientation(rotation);
     }
 
     public boolean isStarted() {
         return started;
     }
 
-    public void startPreview() {
+    public boolean startPreview() {
         try {
-            if (camera == null) {
-                camera = getCameraInstance(cameraId);
-                initializeCamera();
-                camera.setParameters(cameraParameters);
-                camera.setPreviewDisplay(surfaceHolder);
-                ViewCompat.setAlpha(this, 0.f);
-                camera.setOneShotPreviewCallback(new Camera.PreviewCallback() {
-                    @Override
-                    public void onPreviewFrame(byte[] data, Camera camera) {
-                        ViewCompat.setAlpha(QuickCamera.this, 1.f);
-                    }
-                });
-            }
+            initializeCamera();
+            camera.setParameters(cameraParameters);
+            camera.setPreviewDisplay(surfaceHolder);
+            ViewCompat.setAlpha(this, 0.f);
+            camera.setOneShotPreviewCallback(new Camera.PreviewCallback() {
+                @Override
+                public void onPreviewFrame(byte[] data, Camera camera) {
+                    ViewCompat.setAlpha(QuickCamera.this, 1.f);
+                }
+            });
             camera.startPreview();
             started = true;
         } catch (RuntimeException | IOException e) {
             if (callback != null) callback.displayCameraUnavailableError();
+            return false;
         }
-    }
-
-    private static String getOutputMediaFileName(){
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
-        return "IMG_" + timeStamp + ".jpg";
+        return true;
     }
 
     public boolean isMultipleCameras() {
@@ -277,6 +309,6 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
 
     public interface Callback {
         void displayCameraUnavailableError();
-        void onImageCapture(final String imageFilename, final int rotation);
+        void onImageCapture(final Uri imageFileUri, final int rotation);
     }
 }

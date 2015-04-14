@@ -3,6 +3,7 @@ package hu.calvin.quickmediadrawer;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
+import android.net.Uri;
 import android.support.v4.view.ViewCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
@@ -12,6 +13,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -94,12 +96,12 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
     }
 
     @Override
-    public void onImageCapture(final String imageFilename, final int rotation) {
+    public void onImageCapture(final Uri imageFileUri, final int rotation) {
         quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.COLLAPSED);
         ViewCompat.postOnAnimation(quickAttachmentDrawer, new Runnable() {
             public void run() {
                 try {
-                    InputStream in = openFileInput(imageFilename);
+                    InputStream in = new FileInputStream(imageFileUri.getPath());
                     BitmapFactory.Options options = new BitmapFactory.Options();
                     options.inSampleSize=1;
                     Bitmap thumbnail = BitmapFactory.decodeStream(in, null, options);

@@ -235,6 +235,8 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public boolean startPreview() {
+        if (started)
+            stopPreviewAndReleaseCamera();
         try {
             initializeCamera();
             camera.setParameters(cameraParameters);

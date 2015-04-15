@@ -163,12 +163,10 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
                                     (int) (centerY - newHeight / 2),
                                     (int) (centerX + newWidth / 2),
                                     (int) (centerY + newHeight / 2));
-                            Log.d("Quick Camera", "Full Rect: (" + previewWidth + ", " + previewHeight + "), Cropped Preview Rect: " + croppedPreviewRect);
                             previewImage.compressToJpeg(croppedPreviewRect, 100, fileOutputStream);
                         } else {
                             if (rotation == 90 || rotation == 270)
                                 fullPreviewRect.set(0, 0, fullPreviewRect.height(), fullPreviewRect.width());
-                            Log.d("Quick Camera", "Full Rect: (" + previewWidth + ", " + previewHeight + "), Full Preview Rect: " + fullPreviewRect);
                             previewImage.compressToJpeg(fullPreviewRect, 100, fileOutputStream);
                         }
                         fileOutputStream.close();
@@ -207,13 +205,21 @@ public class QuickCamera extends SurfaceView implements SurfaceHolder.Callback {
             case Surface.ROTATION_270: degrees = 270; break;
         }
 
+        int derivedOrientation;
         if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-            rotation = (info.orientation + degrees) % 360;
-            rotation = (360 - rotation) % 360;  // compensate the mirror
+            derivedOrientation = (info.orientation + degrees) % 360;
+            derivedOrientation = (360 - derivedOrientation) % 360;  // compensate the mirror
         } else {
-            rotation = (info.orientation - degrees + 360) % 360;
+            derivedOrientation = (info.orientation - degrees + 360) % 360;
         }
-        camera.setDisplayOrientation(rotation);
+        camera.setDisplayOrientation(derivedOrientation);
+
+        int orientation = (degrees + 45) / 90 * 90;
+        if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT && (degrees == 0 || degrees == 180))
+            rotation = (info.orientation - orientation + 360) % 360;
+        else
+            rotation = derivedOrientation;
+        cameraParameters.setRotation(rotation);
 
         Camera.Size previewSize;
         if (rotation == 0 || rotation == 180)

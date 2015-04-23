@@ -12,13 +12,15 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 
-public class MainActivity extends ActionBarActivity implements QuickAttachmentDrawer.QuickAttachmentDrawerListener {
+public class MainActivity extends ActionBarActivity implements QuickAttachmentDrawer.QuickAttachmentDrawerListener,
+                                                                QuickCamera.QuickCameraListener{
     QuickAttachmentDrawer quickAttachmentDrawer;
     ImageView imageView;
     ActionBar actionBar;
@@ -30,22 +32,23 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
         imageView = (ImageView) findViewById(R.id.sample_imageview);
         quickAttachmentDrawer = (QuickAttachmentDrawer) findViewById(R.id.quick_media_drawer);
         quickAttachmentDrawer.setQuickAttachmentDrawerListener(this);
+        quickAttachmentDrawer.setQuickCameraListener(this);
         findViewById(R.id.quick_media_expand).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.HALF_EXPANDED);
+                quickAttachmentDrawer.setDrawerStateAndAnimate(QuickAttachmentDrawer.HALF_EXPANDED);
             }
         });
         findViewById(R.id.quick_media_collapse).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.COLLAPSED);
+                quickAttachmentDrawer.setDrawerStateAndAnimate(QuickAttachmentDrawer.COLLAPSED);
             }
         });
         findViewById(R.id.quick_media_full_expand).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.FULL_EXPANDED);
+                quickAttachmentDrawer.setDrawerStateAndAnimate(QuickAttachmentDrawer.FULL_EXPANDED);
             }
         });
         actionBar = getSupportActionBar();
@@ -69,15 +72,15 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
     }
 
     @Override
-    protected void onPause() {
-        quickAttachmentDrawer.onPause();
+    protected void onStop() {
+        quickAttachmentDrawer.onStop();
         super.onPause();
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        quickAttachmentDrawer.onResume();
+    protected void onStart() {
+        super.onStart();
+        quickAttachmentDrawer.onStart();
     }
 
     @Override
@@ -96,22 +99,17 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
     }
 
     @Override
-    public void onImageCapture(final Uri imageFileUri, final int rotation) {
-        quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.COLLAPSED);
+    public void displayCameraUnavailableError() {
+        Toast.makeText(MainActivity.this, R.string.quick_camera_unavailable, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onImageCapture(final byte[] data) {
+        quickAttachmentDrawer.setDrawerStateAndAnimate(QuickAttachmentDrawer.COLLAPSED);
         ViewCompat.postOnAnimation(quickAttachmentDrawer, new Runnable() {
             public void run() {
-                try {
-                    InputStream in = new FileInputStream(imageFileUri.getPath());
-                    BitmapFactory.Options options = new BitmapFactory.Options();
-                    options.inSampleSize=1;
-                    Bitmap thumbnail = BitmapFactory.decodeStream(in, null, options);
-                    Matrix matrix = new Matrix();
-                    matrix.postRotate(rotation);
-                    thumbnail = Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.getWidth(), thumbnail.getHeight(), matrix, true);
-                    imageView.setImageBitmap(thumbnail);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                Bitmap thumbnail = BitmapFactory.decodeByteArray(data, 0, data.length);
+                imageView.setImageBitmap(thumbnail);
             }
         });
     }
@@ -119,7 +117,7 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
     @Override
     public void onBackPressed() {
         if (quickAttachmentDrawer.getDrawerState() != QuickAttachmentDrawer.COLLAPSED)
-            quickAttachmentDrawer.setDrawerState(QuickAttachmentDrawer.COLLAPSED);
+            quickAttachmentDrawer.setDrawerStateAndAnimate(QuickAttachmentDrawer.COLLAPSED);
         else
             super.onBackPressed();
     }

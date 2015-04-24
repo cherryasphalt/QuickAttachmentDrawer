@@ -1,4 +1,4 @@
-package hu.calvin.quickmediadrawer;
+package hu.calvin.quickattachmentdrawer;
 
 import android.content.Context;
 import android.content.pm.PackageManager;

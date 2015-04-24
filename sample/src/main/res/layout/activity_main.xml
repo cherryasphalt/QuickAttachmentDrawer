@@ -1,4 +1,4 @@
-<hu.calvin.quickmediadrawer.QuickAttachmentDrawer
+<hu.calvin.quickattachmentdrawer.QuickAttachmentDrawer
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/quick_media_drawer"
@@ -49,4 +49,4 @@
                 android:text="Collapse"/>
         </LinearLayout>
     </LinearLayout>
-</hu.calvin.quickmediadrawer.QuickAttachmentDrawer>
+</hu.calvin.quickattachmentdrawer.QuickAttachmentDrawer>

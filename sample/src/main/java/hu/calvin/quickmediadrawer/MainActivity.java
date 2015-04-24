@@ -2,8 +2,6 @@ package hu.calvin.quickmediadrawer;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
-import android.net.Uri;
 import android.support.v4.view.ViewCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
@@ -14,10 +12,8 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-
+import hu.calvin.quickattachmentdrawer.QuickAttachmentDrawer;
+import hu.calvin.quickattachmentdrawer.QuickCamera;
 
 public class MainActivity extends ActionBarActivity implements QuickAttachmentDrawer.QuickAttachmentDrawerListener,
                                                                 QuickCamera.QuickCameraListener{

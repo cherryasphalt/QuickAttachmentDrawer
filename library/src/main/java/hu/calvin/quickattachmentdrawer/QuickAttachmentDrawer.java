@@ -21,7 +21,9 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ImageButton;
 
-public class QuickAttachmentDrawer extends ViewGroup {
+import java.io.File;
+
+public class QuickAttachmentDrawer extends ViewGroup implements QuickAudio.QuickAudioListener  {
     @IntDef({COLLAPSED, HALF_EXPANDED, FULL_EXPANDED})
     public @interface DrawerState {}
 
@@ -34,8 +36,10 @@ public class QuickAttachmentDrawer extends ViewGroup {
 
     private final ViewDragHelper dragHelper;
     private final QuickCamera quickCamera;
+    private final QuickAudio quickAudio;
     private final ViewPager controls;
-    private View coverView;
+    private View coverView, cameraControls, audioControls, audioFeedbackDisplay;
+    private View[] controlViews;
     private ImageButton fullScreenButton;
     private @DrawerState int drawerState;
     private float slideOffset, initialMotionX, initialMotionY, halfExpandedAnchorPoint;
@@ -68,18 +72,20 @@ public class QuickAttachmentDrawer extends ViewGroup {
             setBackgroundResource(android.R.color.black);
             dragHelper = ViewDragHelper.create(this, 1.f, new ViewDragHelperCallback());
             quickCamera = new QuickCamera(context);
+            quickAudio = new QuickAudio();
+            setQuickAudioListener(this);
             controls = (ViewPager) inflate(getContext(), R.layout.quick_attachment_drawer_controls, null);
-            View cameraControls = inflate(getContext(), R.layout.quick_camera_controls, null);
-            View audioControls = inflate(getContext(), R.layout.quick_audio_controls, null);
-            PagerAdapter adapter = new ControlPagerAdapter(new View[]{cameraControls, audioControls});
-            controls.setAdapter(adapter);
             initializeControlsView();
             addView(quickCamera);
             addView(controls);
         } else {
             dragHelper = null;
             quickCamera = null;
+            quickAudio = null;
             controls = null;
+            cameraControls = null;
+            audioControls = null;
+            controlViews = null;
         }
     }
 
@@ -100,8 +106,28 @@ public class QuickAttachmentDrawer extends ViewGroup {
         }
     }
 
-    private void initializeControlsView() {
-        controls.findViewById(R.id.shutter_button).setOnClickListener(new OnClickListener() {
+    private void initializeAudioControls() {
+        audioControls = inflate(getContext(), R.layout.quick_audio_controls, null);
+        audioControls.findViewById(R.id.audio_record_button).setOnTouchListener(new OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
+                    if (!quickAudio.isRecording()) quickAudio.startRecording();
+                    //return true;
+                } else if (motionEvent.getAction() == MotionEvent.ACTION_UP){
+                    if (quickAudio.isRecording()) quickAudio.stopRecording();
+                    //return true;
+                }
+                return false;
+            }
+        });
+
+        audioFeedbackDisplay = audioControls.findViewById(R.id.audio_record_display);
+    }
+
+    private void initializeCameraControls() {
+        cameraControls = inflate(getContext(), R.layout.quick_camera_controls, null);
+        cameraControls.findViewById(R.id.shutter_button).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 boolean crop = drawerState != FULL_EXPANDED;
@@ -111,7 +137,7 @@ public class QuickAttachmentDrawer extends ViewGroup {
             }
         });
 
-        final ImageButton swapCameraButton = (ImageButton) controls.findViewById(R.id.swap_camera_button);
+        final ImageButton swapCameraButton = (ImageButton) cameraControls.findViewById(R.id.swap_camera_button);
         if (quickCamera.isMultipleCameras()) {
             swapCameraButton.setVisibility(View.VISIBLE);
             swapCameraButton.setOnClickListener(new OnClickListener() {
@@ -123,7 +149,7 @@ public class QuickAttachmentDrawer extends ViewGroup {
             });
         }
 
-        fullScreenButton = (ImageButton) controls.findViewById(R.id.fullscreen_button);
+        fullScreenButton = (ImageButton) cameraControls.findViewById(R.id.fullscreen_button);
         fullScreenButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -135,6 +161,14 @@ public class QuickAttachmentDrawer extends ViewGroup {
                     setDrawerStateAndAnimate(HALF_EXPANDED);
             }
         });
+    }
+
+    private void initializeControlsView() {
+        initializeCameraControls();
+        initializeAudioControls();
+        controlViews = new View[]{cameraControls, audioControls};
+        controls.setAdapter(new ControlPagerAdapter(controlViews));
+        controls.setOnPageChangeListener(new ControlsOnPageListener());
     }
 
     @Override
@@ -273,6 +307,20 @@ public class QuickAttachmentDrawer extends ViewGroup {
         }
     }
 
+
+    @Override
+    public File createNewAudioFile() {
+        if (listener != null) return listener.createNewFile(".3gpp");
+        return null;
+    }
+
+    @Override
+    public void visualizationStep(int maxAmplitude) {
+        if (audioFeedbackDisplay != null) {
+
+        }
+    }
+
     private void setDrawerState(@DrawerState int drawerState) {
         if (hasCamera) {
             switch (drawerState) {
@@ -328,10 +376,15 @@ public class QuickAttachmentDrawer extends ViewGroup {
         if (quickCamera != null) quickCamera.setQuickCameraListener(listener);
     }
 
+    public void setQuickAudioListener(QuickAudio.QuickAudioListener listener) {
+        if (quickAudio != null) quickAudio.setQuickAudioListener(listener);
+    }
+
     public interface QuickAttachmentDrawerListener {
         void onCollapsed();
         void onExpanded();
         void onHalfExpanded();
+        File createNewFile(String extension);
     }
 
     private class ViewDragHelperCallback extends ViewDragHelper.Callback {
@@ -455,6 +508,40 @@ public class QuickAttachmentDrawer extends ViewGroup {
             return true;
         }
         return super.onTouchEvent(event);
+    }
+
+    private class ControlsOnPageListener extends ViewPager.SimpleOnPageChangeListener {
+        private boolean stopCamera;
+        private int currentPosition;
+
+        public ControlsOnPageListener(){
+            super();
+            stopCamera = false;
+            currentPosition = 0;
+        }
+
+        @Override
+        public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+            if (controlViews != null && controlViews[position] == cameraControls && !quickCamera.isStarted()) {
+                quickCamera.startPreview();
+            }
+        }
+
+        @Override
+        public void onPageSelected(int position) {
+            if (controlViews != null && controlViews[position] != cameraControls){
+                stopCamera = true;
+            }
+        }
+
+        @Override
+        public void onPageScrollStateChanged(int state) {
+            if (state == ViewPager.SCROLL_STATE_IDLE && stopCamera) {
+                if (quickCamera.isStarted())
+                    quickCamera.stopPreviewAndReleaseCamera();
+                stopCamera = false;
+            }
+        }
     }
 
     private boolean isDragViewUnder(int x, int y) {

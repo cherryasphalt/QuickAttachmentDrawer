@@ -1,7 +1,9 @@
 package hu.calvin.quickmediadrawer;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.support.v4.view.ViewCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
@@ -11,6 +13,10 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 import hu.calvin.quickattachmentdrawer.QuickAttachmentDrawer;
 import hu.calvin.quickattachmentdrawer.QuickCamera;
@@ -92,6 +98,17 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
     @Override
     public void onHalfExpanded() {
         if (actionBar != null) actionBar.hide();
+    }
+
+    @Override
+    public File createNewFile(String extension) {
+        try {
+            File tempDirectory = getDir("media", Context.MODE_PRIVATE);
+            return File.createTempFile("media", extension, tempDirectory);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @Override

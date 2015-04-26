@@ -9,13 +9,13 @@ import java.io.IOException;
 public class QuickAudio {
     private MediaRecorder mediaRecorder;
     private QuickAudioListener listener;
-    private boolean started;
+    private boolean recording;
     private Handler handler;
     private final static int VISUALIZATION_INTERVAL = 100;
 
     public QuickAudio() {
         handler = new Handler();
-        started = false;
+        recording = false;
     }
 
     public void setQuickAudioListener(QuickAudioListener listener) {
@@ -38,22 +38,26 @@ public class QuickAudio {
             handler.post(new Runnable() {
                 @Override
                 public void run() {
-                    if (started) {
+                    if (recording) {
                         listener.visualizationStep(mediaRecorder.getMaxAmplitude());
                         handler.postDelayed(this, VISUALIZATION_INTERVAL);
                     }
                 }
             });
             mediaRecorder.start();
-            started = true;
+            recording = true;
         }
     }
 
     public void stopRecording() {
-        started = false;
+        recording = false;
         mediaRecorder.stop();
         mediaRecorder.release();
         mediaRecorder = null;
+    }
+
+    public boolean isRecording() {
+        return recording;
     }
 
     public interface QuickAudioListener {

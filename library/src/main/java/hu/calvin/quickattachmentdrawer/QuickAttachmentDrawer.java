@@ -9,7 +9,9 @@ import android.os.Build;
 import android.support.annotation.IntDef;
 import android.support.annotation.NonNull;
 import android.support.v4.view.MotionEventCompat;
+import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewCompat;
+import android.support.v4.view.ViewPager;
 import android.support.v4.widget.ViewDragHelper;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -32,7 +34,7 @@ public class QuickAttachmentDrawer extends ViewGroup {
 
     private final ViewDragHelper dragHelper;
     private final QuickCamera quickCamera;
-    private final View controls;
+    private final ViewPager controls;
     private View coverView;
     private ImageButton fullScreenButton;
     private @DrawerState int drawerState;
@@ -66,7 +68,11 @@ public class QuickAttachmentDrawer extends ViewGroup {
             setBackgroundResource(android.R.color.black);
             dragHelper = ViewDragHelper.create(this, 1.f, new ViewDragHelperCallback());
             quickCamera = new QuickCamera(context);
-            controls = inflate(getContext(), R.layout.quick_camera_controls, null);
+            controls = (ViewPager) inflate(getContext(), R.layout.quick_attachment_drawer_controls, null);
+            View cameraControls = inflate(getContext(), R.layout.quick_camera_controls, null);
+            View audioControls = inflate(getContext(), R.layout.quick_audio_controls, null);
+            PagerAdapter adapter = new ControlPagerAdapter(new View[]{cameraControls, audioControls});
+            controls.setAdapter(adapter);
             initializeControlsView();
             addView(quickCamera);
             addView(controls);
@@ -152,7 +158,10 @@ public class QuickAttachmentDrawer extends ViewGroup {
                 if (quickCamera.getMeasuredWidth() < getMeasuredWidth())
                     childLeft = (getMeasuredWidth() - quickCamera.getMeasuredWidth()) / 2 + paddingLeft;
             } else if (child == controls) {
+                /*childTop = computeCoverBottomPosition(slideOffset);
+                childBottom = childTop + childHeight;*/
                 childBottom = getMeasuredHeight();
+                childTop = childBottom - childHeight;
             } else {
                 childBottom = computeCoverBottomPosition(slideOffset);
                 childTop = childBottom - childHeight;
@@ -190,7 +199,24 @@ public class QuickAttachmentDrawer extends ViewGroup {
                 continue;
             }
 
-            int childWidthSpec;
+            int childWidthSpec, childHeightSpec;
+            if (child == controls) {
+                childHeightSpec = MeasureSpec.makeMeasureSpec(getMeasuredHeight() - computeCoverBottomPosition(slideOffset), MeasureSpec.EXACTLY);
+            } else {
+                switch (lp.height) {
+                    case LayoutParams.WRAP_CONTENT:
+                        childHeightSpec = MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.AT_MOST);
+                        break;
+                    case LayoutParams.MATCH_PARENT:
+                        childHeightSpec = MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY);
+                        break;
+                    default:
+                        childHeightSpec = MeasureSpec.makeMeasureSpec(lp.height, MeasureSpec.EXACTLY);
+                        break;
+                }
+            }
+
+
             switch (lp.width) {
                 case LayoutParams.WRAP_CONTENT:
                     childWidthSpec = MeasureSpec.makeMeasureSpec(widthSize, MeasureSpec.AT_MOST);
@@ -200,19 +226,6 @@ public class QuickAttachmentDrawer extends ViewGroup {
                     break;
                 default:
                     childWidthSpec = MeasureSpec.makeMeasureSpec(lp.width, MeasureSpec.EXACTLY);
-                    break;
-            }
-
-            int childHeightSpec;
-            switch (lp.height) {
-                case LayoutParams.WRAP_CONTENT:
-                    childHeightSpec = MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.AT_MOST);
-                    break;
-                case LayoutParams.MATCH_PARENT:
-                    childHeightSpec = MeasureSpec.makeMeasureSpec(layoutHeight, MeasureSpec.EXACTLY);
-                    break;
-                default:
-                    childHeightSpec = MeasureSpec.makeMeasureSpec(lp.height, MeasureSpec.EXACTLY);
                     break;
             }
 

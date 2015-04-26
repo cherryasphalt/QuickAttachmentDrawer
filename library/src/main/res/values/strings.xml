@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">QuickAttachmentDrawer</string>
+    <string name="quick_audio_instructions">Touch &amp; hold to record</string>
 </resources>

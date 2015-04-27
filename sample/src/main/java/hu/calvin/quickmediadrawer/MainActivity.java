@@ -19,10 +19,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 import hu.calvin.quickattachmentdrawer.QuickAttachmentDrawer;
+import hu.calvin.quickattachmentdrawer.QuickAudio;
 import hu.calvin.quickattachmentdrawer.QuickCamera;
 
 public class MainActivity extends ActionBarActivity implements QuickAttachmentDrawer.QuickAttachmentDrawerListener,
-                                                                QuickCamera.QuickCameraListener{
+                                                                QuickCamera.QuickCameraListener,
+                                                                QuickAudio.QuickAudioListener {
     QuickAttachmentDrawer quickAttachmentDrawer;
     ImageView imageView;
     ActionBar actionBar;
@@ -35,6 +37,7 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
         quickAttachmentDrawer = (QuickAttachmentDrawer) findViewById(R.id.quick_media_drawer);
         quickAttachmentDrawer.setQuickAttachmentDrawerListener(this);
         quickAttachmentDrawer.setQuickCameraListener(this);
+        quickAttachmentDrawer.setQuickAudioListener(this);
         findViewById(R.id.quick_media_expand).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -101,17 +104,6 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
     }
 
     @Override
-    public File createNewFile(String extension) {
-        try {
-            File tempDirectory = getDir("media", Context.MODE_PRIVATE);
-            return File.createTempFile("media", extension, tempDirectory);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    @Override
     public void displayCameraUnavailableError() {
         Toast.makeText(MainActivity.this, R.string.quick_camera_unavailable, Toast.LENGTH_SHORT).show();
     }
@@ -134,4 +126,18 @@ public class MainActivity extends ActionBarActivity implements QuickAttachmentDr
         else
             super.onBackPressed();
     }
+
+    @Override
+    public File createNewAudioFile() {
+        try {
+            File tempDirectory = getDir("media", Context.MODE_PRIVATE);
+            return File.createTempFile("media", ".3gpp", tempDirectory);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    @Override
+    public void onStopRecording(File audioFile) { }
 }

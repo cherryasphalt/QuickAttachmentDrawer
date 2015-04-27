@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<hu.calvin.quickattachmentdrawer.QuickAudio
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#ffffffff">
@@ -14,7 +15,8 @@
         android:id="@+id/audio_record_display"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"/>
+        android:layout_centerInParent="true"
+        android:contentDescription="@string/quick_audio_visual_description"/>
     <ImageButton
         android:id="@+id/audio_record_button"
         android:layout_width="wrap_content"
@@ -22,5 +24,6 @@
         android:layout_centerInParent="true"
         android:background="@drawable/quick_audio_mic_background"
         android:src="@drawable/quick_audio_mic"
-        android:padding="20dp"/>
-</RelativeLayout>
+        android:padding="20dp"
+        android:contentDescription="@string/quick_audio_record_button_description"/>
+</hu.calvin.quickattachmentdrawer.QuickAudio>

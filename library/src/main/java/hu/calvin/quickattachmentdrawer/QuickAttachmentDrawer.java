@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Rect;
+import android.graphics.drawable.ScaleDrawable;
 import android.hardware.Camera;
 import android.os.Build;
 import android.support.annotation.IntDef;
@@ -39,6 +40,7 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickAudio.Quick
     private final QuickAudio quickAudio;
     private final ViewPager controls;
     private View coverView, cameraControls, audioControls, audioFeedbackDisplay;
+    private ScaleDrawable audioFeedbackBackground;
     private View[] controlViews;
     private ImageButton fullScreenButton;
     private @DrawerState int drawerState;
@@ -72,7 +74,7 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickAudio.Quick
             setBackgroundResource(android.R.color.black);
             dragHelper = ViewDragHelper.create(this, 1.f, new ViewDragHelperCallback());
             quickCamera = new QuickCamera(context);
-            quickAudio = new QuickAudio();
+            quickAudio = new QuickAudio(context);
             setQuickAudioListener(this);
             controls = (ViewPager) inflate(getContext(), R.layout.quick_attachment_drawer_controls, null);
             initializeControlsView();
@@ -111,18 +113,29 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickAudio.Quick
         audioControls.findViewById(R.id.audio_record_button).setOnTouchListener(new OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
-                if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
-                    if (!quickAudio.isRecording()) quickAudio.startRecording();
-                    //return true;
-                } else if (motionEvent.getAction() == MotionEvent.ACTION_UP){
-                    if (quickAudio.isRecording()) quickAudio.stopRecording();
-                    //return true;
+                final Rect hitRect = new Rect();
+                view.getHitRect(hitRect);
+                final float x = motionEvent.getX() + hitRect.left;
+                final float y = motionEvent.getY() + hitRect.top;
+                switch (motionEvent.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        if (!quickAudio.isRecording()) quickAudio.startRecording();
+                        return false;
+                    case MotionEvent.ACTION_UP:
+                        if (quickAudio.isRecording()) quickAudio.stopRecording();
+                        return false;
+                    case MotionEvent.ACTION_CANCEL:
+                        if (quickAudio.isRecording())
+                            quickAudio.stopRecording();
+                        return false;
                 }
                 return false;
             }
         });
 
+        audioFeedbackBackground = (ScaleDrawable) getResources().getDrawable(R.drawable.quick_audio_feedback_scalable);
         audioFeedbackDisplay = audioControls.findViewById(R.id.audio_record_display);
+        audioFeedbackDisplay.setBackgroundDrawable(audioFeedbackBackground);
     }
 
     private void initializeCameraControls() {
@@ -316,8 +329,17 @@ public class QuickAttachmentDrawer extends ViewGroup implements QuickAudio.Quick
 
     @Override
     public void visualizationStep(int maxAmplitude) {
-        if (audioFeedbackDisplay != null) {
+        if (audioFeedbackDisplay != null && audioFeedbackBackground != null) {
+            int clampedAmplitude = Math.min(maxAmplitude  * 10/4 + 5000, 10000);
+            //clampedAmplitude = (int) (1.f - (float)(Math.log(10000-clampedAmplitude)/Math.log(10000))) * clampedAmplitude;
+            audioFeedbackBackground.setLevel(clampedAmplitude);
+        }
+    }
 
+    @Override
+    public void onStopRecording(File audioFile) {
+        if (audioFeedbackDisplay != null && audioFeedbackBackground != null) {
+            audioFeedbackBackground.setLevel(0);
         }
     }
 

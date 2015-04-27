@@ -1,21 +1,28 @@
 package hu.calvin.quickattachmentdrawer;
 
+import android.content.Context;
 import android.media.MediaRecorder;
 import android.os.Handler;
+import android.os.PowerManager;
 
 import java.io.File;
 import java.io.IOException;
 
 public class QuickAudio {
+    private final String TAG = getClass().getSimpleName();
     private MediaRecorder mediaRecorder;
     private QuickAudioListener listener;
     private boolean recording;
     private Handler handler;
-    private final static int VISUALIZATION_INTERVAL = 100;
+    private File audioFile;
+    private PowerManager.WakeLock wakeLock;
+    private final static int VISUALIZATION_INTERVAL = 1;
 
-    public QuickAudio() {
-        handler = new Handler();
+    public QuickAudio(Context context) {
         recording = false;
+        handler = new Handler();
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
     }
 
     public void setQuickAudioListener(QuickAudioListener listener) {
@@ -28,9 +35,10 @@ public class QuickAudio {
         mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
         mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+        wakeLock.acquire();
         if (listener != null) {
-            File newFile = listener.createNewAudioFile();
-            mediaRecorder.setOutputFile(newFile.getPath());
+            audioFile = listener.createNewAudioFile();
+            mediaRecorder.setOutputFile(audioFile.getPath());
             try {
                 mediaRecorder.prepare();
             } catch (IOException e) {
@@ -53,7 +61,10 @@ public class QuickAudio {
         recording = false;
         mediaRecorder.stop();
         mediaRecorder.release();
+        wakeLock.release();
+        if (listener != null) listener.onStopRecording(audioFile);
         mediaRecorder = null;
+        audioFile = null;
     }
 
     public boolean isRecording() {
@@ -61,7 +72,8 @@ public class QuickAudio {
     }
 
     public interface QuickAudioListener {
-        public File createNewAudioFile();
-        public void visualizationStep(int maxAmplitude);
+        File createNewAudioFile();
+        void visualizationStep(int maxAmplitude);
+        void onStopRecording(File audioFile);
     }
 }

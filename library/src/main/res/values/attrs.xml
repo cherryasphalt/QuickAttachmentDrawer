@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="QuickAttachmentDrawer">
+        <attr name="inputTypes">
+            <flag name="camera" value="0x01"/>
+            <flag name="audio" value="0x02"/>
+        </attr>
+    </declare-styleable>
+</resources>

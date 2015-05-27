@@ -2,6 +2,7 @@ package hu.calvin.quickattachmentdrawer;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.ScaleDrawable;
@@ -22,12 +23,12 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ImageButton;
 
-import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class QuickAttachmentDrawer extends ViewGroup  {
     @IntDef({COLLAPSED, HALF_EXPANDED, FULL_EXPANDED})
     public @interface DrawerState {}
-
     public static final int COLLAPSED = 0;
     public static final int HALF_EXPANDED = 1;
     public static final int FULL_EXPANDED = 2;
@@ -35,18 +36,20 @@ public class QuickAttachmentDrawer extends ViewGroup  {
     private static final float FULL_EXPANDED_ANCHOR_POINT = 1.f;
     private static final float COLLAPSED_ANCHOR_POINT = 0.f;
 
+    private static final int FLAG_CAMERA = 0x01;
+    private static final int FLAG_AUDIO = 0x02;
+
     private final ViewDragHelper dragHelper;
     private final QuickCamera quickCamera;
     private final QuickAudio quickAudio;
     private final ViewPager controls;
-    private View coverView, cameraControls, audioControls, audioFeedbackDisplay;
-    private ScaleDrawable audioFeedbackBackground;
+    private View coverView, cameraControls;
     private View[] controlViews;
     private ImageButton fullScreenButton;
     private @DrawerState int drawerState;
     private float slideOffset, initialMotionX, initialMotionY, halfExpandedAnchorPoint;
-    private boolean initialSetup, hasCamera, startCamera, stopCamera, landscape, belowICS;
-    private int slideRange, baseHalfHeight;
+    private boolean initialSetup, hasCamera, hasMic, startCamera, stopCamera, landscape, belowICS, inputCamera, inputAudio;
+    private int inputTypes, slideRange, baseHalfHeight;
     private Rect drawChildrenRect = new Rect();
     private QuickAttachmentDrawerListener listener;
 
@@ -60,6 +63,13 @@ public class QuickAttachmentDrawer extends ViewGroup  {
 
     public QuickAttachmentDrawer(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
+        TypedArray attrArray = context.getTheme().obtainStyledAttributes(attrs, R.styleable.QuickAttachmentDrawer, 0, 0);
+        try {
+            inputTypes = attrArray.getInt(R.styleable.QuickAttachmentDrawer_inputTypes, 3);
+        } finally {
+            attrArray.recycle();
+        }
+
         initialSetup = true;
         startCamera = false;
         stopCamera = false;
@@ -69,35 +79,47 @@ public class QuickAttachmentDrawer extends ViewGroup  {
         int rotation = ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
         landscape = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270;
         belowICS = android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH;
+
+        PackageManager packageManager = context.getPackageManager();
         hasCamera = context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA) && Camera.getNumberOfCameras() > 0;
-        if (hasCamera) {
+        hasMic = packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE);
+
+        inputCamera = 0 != (inputTypes & FLAG_CAMERA) && hasCamera;
+        inputAudio = 0 != (inputTypes & FLAG_AUDIO) && hasMic;
+        if (inputCamera) {
             setBackgroundResource(android.R.color.black);
-            dragHelper = ViewDragHelper.create(this, 1.f, new ViewDragHelperCallback());
             quickCamera = new QuickCamera(context);
+            addView(quickCamera);
+            initializeCameraControls();
+        } else {
+            quickCamera = null;
+            cameraControls = null;
+        }
+
+        if (inputAudio) {
             quickAudio = (QuickAudio) inflate(getContext(), R.layout.quick_audio_controls, null);
+        } else {
+            quickAudio = null;
+        }
+
+        if (inputCamera || inputAudio) {
+            dragHelper = ViewDragHelper.create(this, 1.f, new ViewDragHelperCallback());
             controls = (ViewPager) inflate(getContext(), R.layout.quick_attachment_drawer_controls, null);
             initializeControlsView();
-            addView(quickCamera);
             addView(controls);
         } else {
             dragHelper = null;
-            quickCamera = null;
-            quickAudio = null;
             controls = null;
-            cameraControls = null;
-            audioControls = null;
             controlViews = null;
         }
-    }
-
-    public boolean hasCamera() {
-        return hasCamera;
     }
 
     private void initializeHalfExpandedAnchorPoint() {
         if (initialSetup) {
             if (getChildCount() == 3)
                 coverView = getChildAt(2);
+            else if (!inputCamera && inputAudio)
+                coverView = getChildAt(1);
             else
                 coverView = getChildAt(0);
             slideRange = getMeasuredHeight();
@@ -146,9 +168,10 @@ public class QuickAttachmentDrawer extends ViewGroup  {
     }
 
     private void initializeControlsView() {
-        initializeCameraControls();
-        //initializeAudioControls();
-        controlViews = new View[]{cameraControls, quickAudio};
+        List<View> viewList = new ArrayList<>();
+        if (inputCamera) viewList.add(cameraControls);
+        if (inputAudio) viewList.add(quickAudio);
+        controlViews = viewList.toArray(new View[viewList.size()]);
         controls.setAdapter(new ControlPagerAdapter(controlViews));
         controls.setOnPageChangeListener(new ControlsOnPageListener());
     }
@@ -202,8 +225,8 @@ public class QuickAttachmentDrawer extends ViewGroup  {
         }
 
         final int childCount = getChildCount();
-        if ((hasCamera && childCount != 3) || (!hasCamera && childCount != 1))
-            throw new IllegalStateException("QuickAttachmentDrawer layouts may only have 1 child.");
+        //if (inputCamera && childCount != 3)
+        //    throw new IllegalStateException("QuickAttachmentDrawer layouts may only have 1 child.");
 
         int layoutHeight = heightSize - getPaddingTop() - getPaddingBottom();
 
@@ -279,10 +302,10 @@ public class QuickAttachmentDrawer extends ViewGroup  {
     public void computeScroll() {
         if (dragHelper != null && dragHelper.continueSettling(true)) {
             ViewCompat.postInvalidateOnAnimation(this);
-        } else if (stopCamera) {
+        } else if (stopCamera && quickCamera != null) {
             quickCamera.stopPreviewAndReleaseCamera();
             stopCamera = false;
-        } else if (startCamera) {
+        } else if (startCamera && quickCamera != null) {
             startCamera = false;
             if (!quickCamera.startPreview())
                 setDrawerStateAndAnimate(COLLAPSED);
@@ -290,14 +313,16 @@ public class QuickAttachmentDrawer extends ViewGroup  {
     }
 
     private void setDrawerState(@DrawerState int drawerState) {
-        if (hasCamera) {
+        if (inputCamera || inputAudio) {
             switch (drawerState) {
                 case COLLAPSED:
-                    if (quickCamera.isStarted())
+                    if (quickCamera != null && quickCamera.isStarted())
                         stopCamera = true;
                     slideOffset = COLLAPSED_ANCHOR_POINT;
-                    startCamera = false;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    if (inputCamera) {
+                        startCamera = false;
+                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    }
                     if (listener != null) listener.onCollapsed();
                     break;
                 case HALF_EXPANDED:
@@ -305,19 +330,23 @@ public class QuickAttachmentDrawer extends ViewGroup  {
                         setDrawerState(FULL_EXPANDED);
                         return;
                     }
-                    if (!quickCamera.isStarted())
+                    if (quickCamera != null && !quickCamera.isStarted())
                         startCamera = true;
                     slideOffset = halfExpandedAnchorPoint;
-                    stopCamera = false;
-                    fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    if (inputCamera) {
+                        stopCamera = false;
+                        fullScreenButton.setImageResource(R.drawable.quick_camera_fullscreen);
+                    }
                     if (listener != null) listener.onHalfExpanded();
                     break;
                 case FULL_EXPANDED:
-                    if (!quickCamera.isStarted())
+                    if (quickCamera != null && !quickCamera.isStarted())
                         startCamera = true;
                     slideOffset = FULL_EXPANDED_ANCHOR_POINT;
-                    stopCamera = false;
-                    fullScreenButton.setImageResource(landscape || belowICS ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
+                    if (inputCamera) {
+                        stopCamera = false;
+                        fullScreenButton.setImageResource(landscape || belowICS ? R.drawable.quick_camera_hide : R.drawable.quick_camera_exit_fullscreen);
+                    }
                     if (listener != null) listener.onExpanded();
                     break;
             }
@@ -407,8 +436,10 @@ public class QuickAttachmentDrawer extends ViewGroup  {
                 setDrawerState(drawerState);
                 dragHelper.captureChildView(coverView, 0);
                 dragHelper.settleCapturedViewAt(coverView.getLeft(), computeCoverBottomPosition(slideOffset) - coverView.getHeight());
-                dragHelper.captureChildView(quickCamera, 0);
-                dragHelper.settleCapturedViewAt(quickCamera.getLeft(), computeCameraTopPosition(slideOffset));
+                if (quickCamera != null) {
+                    dragHelper.captureChildView(quickCamera, 0);
+                    dragHelper.settleCapturedViewAt(quickCamera.getLeft(), computeCameraTopPosition(slideOffset));
+                }
                 ViewCompat.postInvalidateOnAnimation(QuickAttachmentDrawer.this);
             }
         }
@@ -453,7 +484,9 @@ public class QuickAttachmentDrawer extends ViewGroup  {
                         return super.onInterceptTouchEvent(event);
                     }
 
-                    if ((ady > dragSlop && adx > ady) || !isDragViewUnder((int) initialMotionX, (int) initialMotionY)) {
+                    if ((ady > dragSlop && adx > ady) ){
+                        //|| (quickCamera != null
+                         //   && !isDragViewUnder((int) initialMotionX, (int) initialMotionY))) {
                         dragHelper.cancel();
                         return false;
                     }
@@ -477,12 +510,10 @@ public class QuickAttachmentDrawer extends ViewGroup  {
 
     private class ControlsOnPageListener extends ViewPager.SimpleOnPageChangeListener {
         private boolean stopCamera;
-        private int currentPosition;
 
         public ControlsOnPageListener(){
             super();
             stopCamera = false;
-            currentPosition = 0;
         }
 
         @Override
@@ -540,7 +571,7 @@ public class QuickAttachmentDrawer extends ViewGroup  {
     private void slideTo(float slideOffset) {
         if (dragHelper != null && !belowICS) {
             dragHelper.smoothSlideViewTo(coverView, coverView.getLeft(), computeCoverBottomPosition(slideOffset) - coverView.getHeight());
-            dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), computeCameraTopPosition(slideOffset));
+            if (quickCamera != null) dragHelper.smoothSlideViewTo(quickCamera, quickCamera.getLeft(), computeCameraTopPosition(slideOffset));
             ViewCompat.postInvalidateOnAnimation(this);
         } else {
             invalidate();
@@ -553,14 +584,14 @@ public class QuickAttachmentDrawer extends ViewGroup  {
     }
 
     public void onStop() {
-        if (hasCamera)
+        if (inputCamera)
             quickCamera.stopPreviewAndReleaseCamera();
         if (quickAudio.isRecording())
             quickAudio.stopRecording();
     }
 
     public void onStart() {
-        if (hasCamera && (drawerState == HALF_EXPANDED || drawerState == FULL_EXPANDED))
+        if (inputCamera && (drawerState == HALF_EXPANDED || drawerState == FULL_EXPANDED))
             quickCamera.startPreview();
     }
 }

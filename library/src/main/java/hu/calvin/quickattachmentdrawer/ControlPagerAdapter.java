@@ -6,7 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 public class ControlPagerAdapter extends PagerAdapter {
-    View[] views;
+    final View[] views;
 
     public ControlPagerAdapter(View[] views) {
         this.views = views;

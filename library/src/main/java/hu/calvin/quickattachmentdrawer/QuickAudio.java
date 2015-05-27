@@ -75,6 +75,14 @@ public class QuickAudio extends RelativeLayout {
         audioFeedbackDisplay.setBackgroundDrawable(audioFeedbackBackground);
     }
 
+    private void visualizationStep(int maxAmplitude) {
+        if (audioFeedbackDisplay != null && audioFeedbackBackground != null) {
+            int clampedAmplitude = Math.min(maxAmplitude  * 10/4 + 5000, 10000);
+            //clampedAmplitude = (int) (1.f - (float)(Math.log(10000-clampedAmplitude)/Math.log(10000))) * clampedAmplitude;
+            audioFeedbackBackground.setLevel(clampedAmplitude);
+        }
+    }
+
     public void setQuickAudioListener(QuickAudioListener listener) {
         this.listener = listener;
     }
@@ -121,14 +129,6 @@ public class QuickAudio extends RelativeLayout {
 
     public boolean isRecording() {
         return recording;
-    }
-
-    public void visualizationStep(int maxAmplitude) {
-        if (audioFeedbackDisplay != null && audioFeedbackBackground != null) {
-            int clampedAmplitude = Math.min(maxAmplitude  * 10/4 + 5000, 10000);
-            //clampedAmplitude = (int) (1.f - (float)(Math.log(10000-clampedAmplitude)/Math.log(10000))) * clampedAmplitude;
-            audioFeedbackBackground.setLevel(clampedAmplitude);
-        }
     }
 
     public interface QuickAudioListener {
